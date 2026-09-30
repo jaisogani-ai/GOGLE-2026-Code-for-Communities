@@ -700,27 +700,7 @@ function wire() {
   $("uiEn").addEventListener("click", () => setLang("en")); $("uiHi").addEventListener("click", () => setLang("hi"));
   if (store.get("tathyon.lang") === "hi") setLang("hi");
 
-  const applyTheme = (theme) => {
-    if (theme === "dark") {
-      document.documentElement.setAttribute("data-theme", "dark");
-      const icon = $("themeIcon");
-      if (icon) icon.textContent = "light_mode";
-      $("themeToggle")?.setAttribute("title", "Switch to Light Mode");
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-      const icon = $("themeIcon");
-      if (icon) icon.textContent = "dark_mode";
-      $("themeToggle")?.setAttribute("title", "Switch to Dark Mode");
-    }
-    try { localStorage.setItem("tathyon.theme", theme); } catch {}
-  };
-  let initialTheme = "light";
-  try { initialTheme = localStorage.getItem("tathyon.theme") || "light"; } catch {}
-  applyTheme(initialTheme);
-  $("themeToggle")?.addEventListener("click", () => {
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    applyTheme(isDark ? "light" : "dark");
-  });
+  document.documentElement.setAttribute("data-theme", "dark");
   const SUGGEST = { ops_copilot: ["Which facilities should be counted first and why?", "Why was a donor rejected in the latest plan?"],
     resilience_analyst: ["Which facilities are at risk and what changed since the previous plan?", "What if demand rises 30%?"],
     replan_watcher: ["Check whether any approved plan is now infeasible and draft a replan."],
