@@ -66,6 +66,35 @@ graph TD
 
 ---
 
+## The Core Operational Journey: Phantom Stock Mitigation
+
+```
+[Facility at Risk]
+       │
+       ▼
+[Potential Donor Identified]
+       │
+       ▼ (Trust Layer Flags Latency / Discrepancy)
+[Targeted Field Verification Dispatched]
+       │
+       ▼ (Phone / Physical Shelf Count Arrives)
+[Physical Count Reveals Deficit]
+       │
+       ▼ (Automated Replan Watcher Triggered)
+[OR-Tools Selects Alternative Donor with Verified Safety Floor]
+       │
+       ▼
+[Human Health Authority Signs Transfer Order]
+       │
+       ▼
+[Cold-Chain Dispatch Executed & Confirmed at Recipient]
+       │
+       ▼
+[SHA-256 Hash Chain Updated · Stockout Averted]
+```
+
+---
+
 ## Why Existing Systems Are Not Replaced
 
 TATHYON is **not** an electronic medical records (EMR) system or a warehouse ERP. It does not replace existing national supply systems such as India's DVDMS (e-Aushadhi), CoWIN, or OpenLMIS.
@@ -92,14 +121,22 @@ TATHYON employs five bounded, specialized agents. In strict accordance with publ
 
 ---
 
-## AI & Optimization Architecture
+## AI & Mathematical Optimization Architecture
 
-- **Language Intelligence:** Google Gemini 2.5 Flash SDK parses unstructured logistics data, generates human-readable incident summaries, and translates operational briefings into Hindi and English. If the Gemini API is unreachable, the system automatically falls back to deterministic rule-based explanations (`DETERMINISTIC FALLBACK`).
-- **Mathematical Allocation:** Google OR-Tools CP-SAT formulation solves multi-facility, multi-SKU reallocation with:
-  - Strict donor safety floor constraints (preventing secondary stockouts).
-  - Cold-box thermal transport constraints (hours of transit autonomy).
-  - Maximum transfer distance and vehicle payload capacity limits.
-- **Epistemic Trust Engine:** Deterministic decay models calculate stock confidence as a function of observation age, reporter role hierarchy, and past reconciliation discrepancies.
+### 1. Language Intelligence (Google Gemini 2.5 Flash)
+- Structured parsing of multi-language logistics inputs (English & Hindi).
+- Generation of deterministic explainability summaries for District Medical Officers.
+- Graceful degradation: if Gemini connectivity is interrupted, the system automatically transitions to `DETERMINISTIC FALLBACK` mode with zero functional downtime.
+
+### 2. Google OR-Tools CP-SAT Solver Formulation
+The resource rebalancing model optimizes allocation across multi-district health nodes:
+
+$$\min \sum_{i,j,k} c_{ij} \cdot x_{ijk} + \lambda \sum_j \text{Deficit}_j$$
+
+Subject to:
+- **Donor Safety Floor:** $S_{ik} - \sum_j x_{ijk} \ge \text{Floor}_{ik}$ (prevents depleting donor clinic reserves).
+- **Cold-Chain Travel Constraint:** $t_{ij} \le T_{\text{thermal\_max}}$ (ensures medicine transit stays within active cold-box limits).
+- **Epistemic Trust Gating:** Unverified or stale balances cannot serve as primary donors for critical life-saving therapeutics without pre-dispatch human confirmation.
 
 ---
 
@@ -116,9 +153,24 @@ TATHYON employs five bounded, specialized agents. In strict accordance with publ
 
 ## Verification & Cryptographic Ledger
 
-![TATHYON Audit Ledger & Outome Tracking](docs/screenshots/03-outcome-audit.png)
+![TATHYON Audit Ledger & Outcome Tracking](docs/screenshots/03-outcome-audit.png)
 
 Every transaction—from inventory ingestion and field count attestation to human officer approvals and shipment receipts—is appended to an immutable SHA-256 hash-chained ledger. Any tampering or retroactive modification immediately breaks the chain and alerts the operations console.
+
+---
+
+## Primary API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | System health, cryptographic ledger integrity, and event count. |
+| `GET` | `/api/workspace` | Current active district workspace, facility counts, and loaded SKUs. |
+| `GET` | `/api/trust/queue` | Prioritized risk queue sorted by days-of-runway and verification confidence. |
+| `POST` | `/api/intake/osm-registry` | Ingests real facility geometry from OpenStreetMap Overpass API for a district. |
+| `POST` | `/api/plans/solve` | Solves the CP-SAT multi-facility allocation problem. |
+| `POST` | `/api/plans/replan` | Re-evaluates active transfer plans when a physical count contradicts reported stock. |
+| `POST` | `/api/approvals/decide` | Human officer sign-off (`APPROVE`, `REJECT`, `BREAK_GLASS`). |
+| `GET` | `/api/events.csv` | Full cryptographic ledger export for statutory public health audit. |
 
 ---
 
