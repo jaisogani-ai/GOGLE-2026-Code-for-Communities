@@ -1,0 +1,27 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kaggle.json
+
+# Local runtime data (ledgers, caches, generated datasets)
+data/
+*.sqlite3
+*.sqlite3-*
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.claude/
+
+# OS
+.DS_Store
+._*

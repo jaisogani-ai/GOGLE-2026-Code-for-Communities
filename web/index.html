@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TATHYON Operations</title>
+  <meta name="description" content="Healthcare supply resilience: which records to verify, which shortages to serve, and what happened afterwards.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">TATHYON<small>Healthcare supply resilience · district operations</small></div>
+  <div class="status-strip" id="statusStrip" aria-live="polite"></div>
+  <div class="who">
+    <label for="identity" class="muted" style="font-size:12px">Signed in as</label>
+    <select id="identity" aria-describedby="identityNote"></select>
+    <span id="identityNote" class="badge b-nc" title="Signed demo session with a server-side role. No identity provider is connected.">DEMO IDENTITY</span>
+    <button class="btn sm" id="openAgents" aria-controls="agentDrawer">Ask agents</button>
+  </div>
+</header>
+<nav class="tabs" role="tablist" aria-label="Operations views">
+  <button role="tab" data-view="queue" aria-selected="true">Trust queue<span class="count" id="c-queue">–</span></button>
+  <button role="tab" data-view="map" aria-selected="false">Map<span class="count" id="c-map">–</span></button>
+  <button role="tab" data-view="allocation" aria-selected="false">Allocation<span class="count" id="c-alloc">–</span></button>
+  <button role="tab" data-view="approval" aria-selected="false">Approval<span class="count" id="c-approval">–</span></button>
+  <button role="tab" data-view="outcome" aria-selected="false">Outcome</button>
+  <button role="tab" data-view="audit" aria-selected="false">Audit<span class="count" id="c-audit">–</span></button>
+  <button role="tab" data-view="data" aria-selected="false">Data intake</button>
+</nav>
+<main>
+  <div id="sampleBanner" class="notice bad" hidden role="status"><strong>SAMPLE DATA LOADED.</strong> Facility locations are real (OpenStreetMap). Stock, counts, bed and staff figures marked SAMPLE are demonstration values and describe no real facility.</div>
+  <section class="view" id="view-queue" role="tabpanel">
+    <div class="view-head"><h1>Trust queue</h1><span class="q">Which records must a person count before anyone relies on them?</span>
+      <div class="toolbar">
+        <label class="field" style="grid-auto-flow:column;align-items:center">SKU <select id="queueSku"></select></label>
+        <label class="field" style="grid-auto-flow:column;align-items:center">Verifier hours <input id="queueHours" type="number" min="1" max="80" value="6" style="width:70px"></label>
+        <button class="btn" id="queueRefresh">Refresh</button>
+      </div></div>
+    <div id="queueBody"></div>
+    <div class="panel" id="attestPanel" hidden>
+      <h2>Record a physical count</h2>
+      <p class="muted" style="margin-top:0">Only a field verifier who is not staff of the facility can record a count. The count is compared with the report and ledgered.</p>
+      <form id="attestForm" class="grid3">
+        <label class="field">Facility <input name="facility_id" required readonly></label>
+        <label class="field">SKU <input name="sku" required readonly></label>
+        <label class="field">Evidence reference <input name="evidence_ref" maxlength="200" placeholder="count-sheet number or photo id"></label>
+        <label class="field">Present <input name="present_qty" type="number" min="0" step="any" required></label>
+        <label class="field">Usable <input name="usable_qty" type="number" min="0" step="any" required></label>
+        <label class="field">Expired / damaged <input name="expired_qty" type="number" min="0" step="any" value="0"></label>
+        <div><button class="btn primary" type="submit">Submit count</button> <button class="btn" type="button" id="attestCancel">Cancel</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="view" id="view-map" role="tabpanel" hidden>
+    <div class="view-head"><h1>Map</h1><span class="q">Where are the shortages, the unverified surpluses and the moving stock?</span>
+      <div class="toolbar">
+        <label class="field" style="grid-auto-flow:column;align-items:center">Search <input id="mapSearch" list="facilityList" placeholder="facility name or id" style="width:200px"></label>
+        <datalist id="facilityList"></datalist>
+        <select id="mapBlock" aria-label="District filter"></select>
+        <select id="mapTier" aria-label="Facility type filter"></select>
+        <select id="mapSku" aria-label="Resource filter"></select>
+        <div role="group" aria-label="Map mode"><button class="btn sm" id="mode2d" aria-pressed="true">2D</button><button class="btn sm" id="mode3d" aria-pressed="false">3D</button></div>
+      </div></div>
+    <div id="mapNotice"></div>
+    <div class="map-shell">
+      <div><div id="mapCanvas" role="application" aria-label="Operational map"></div>
+        <div class="legend">
+          <span><span class="dot" style="background:#a3231f"></span>Below alert runway</span>
+          <span><span class="dot" style="background:#d99a00"></span>Verification target</span>
+          <span><span class="dot" style="background:#1d6b3a"></span>Verified count</span>
+          <span><span class="dot" style="background:#7a3fa0"></span>Phantom stock found</span>
+          <span><span class="dot" style="background:#9aa3ae"></span>No stock data</span>
+          <span>── dispatched · - - contingent / proposed</span></div></div>
+      <aside class="panel map-drawer" id="mapDrawer" aria-live="polite"><div class="empty"><strong>Select a facility</strong>Markers come from the backend registry; each shows its source.</div></aside>
+    </div>
+  </section>
+
+  <section class="view" id="view-allocation" role="tabpanel" hidden>
+    <div class="view-head"><h1>Allocation</h1><span class="q">Which shortages do we serve first, from which verified donors?</span>
+      <div class="toolbar"><select id="planSku" aria-label="SKU to plan"></select><button class="btn primary" id="proposePlan">Generate options</button></div></div>
+    <div id="allocBody"></div>
+  </section>
+
+  <section class="view" id="view-approval" role="tabpanel" hidden>
+    <div class="view-head"><h1>Approval</h1><span class="q">A district medical officer decides. Every decision needs a reason and is ledgered.</span></div>
+    <div id="approvalBody"></div>
+  </section>
+
+  <section class="view" id="view-outcome" role="tabpanel" hidden>
+    <div class="view-head"><h1>Outcome</h1><span class="q">What happened after the decision, measured from the ledger?</span>
+      <div class="toolbar"><button class="btn" id="runWatcher">Run replan watcher</button></div></div>
+    <div id="outcomeBody"></div>
+  </section>
+
+  <section class="view" id="view-audit" role="tabpanel" hidden>
+    <div class="view-head"><h1>Audit</h1><span class="q">Every consequential step, hash-chained.</span>
+      <div class="toolbar">
+        <select id="auditType" aria-label="Event type filter"></select>
+        <button class="btn" id="auditRefresh">Refresh</button>
+        <button class="btn" id="auditExport">Export CSV</button>
+        <button class="btn" id="auditExplain">Explain case (Evidence agent)</button>
+      </div></div>
+    <div id="auditBody"></div>
+  </section>
+
+  <section class="view" id="view-data" role="tabpanel" hidden>
+    <div class="view-head"><h1>Data intake</h1><span class="q">Real sources only. Nothing here is generated.</span></div>
+    <div id="dataSources" class="panel"></div>
+    <div class="grid2">
+      <div class="panel"><h2>1 · Facility registry</h2>
+        <p class="muted" style="margin-top:0">Load real public facility locations from OpenStreetMap (5 districts, 5 states), or upload your authorised registry (CSV: facility_id, name, tier, lat, lon, block, has_cold_chain, custodian_id).</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="osmDistrict" aria-label="District"></select>
+        <button class="btn" id="loadOsm">Load OpenStreetMap facilities</button></div>
+        <form id="registryForm" style="margin-top:10px;display:grid;gap:8px">
+          <input type="file" id="registryFile" accept=".csv,.tsv,text/csv" aria-label="Facility registry file">
+          <button class="btn" type="submit">Upload registry</button></form></div>
+      <div class="panel"><h2>2 · Stock export (DVDMS / e-Aushadhi shaped)</h2>
+        <p class="muted" style="margin-top:0">CSV/TSV with FacilityCode, DrugCode, AvailableStock, IssuedQty, Date (optional: DrugName, period_days, BatchNo, ExpiryDate, VED, cold_chain). Rows stay UNVERIFIED until counted.</p>
+        <form id="stockForm" style="display:grid;gap:8px">
+          <input type="file" id="stockFile" accept=".csv,.tsv,text/csv,text/tab-separated-values" aria-label="Stock export file">
+          <button class="btn" type="submit">Upload stock export</button></form></div>
+    </div>
+    <div class="panel"><h2>3 · Sample dataset (optional, for demonstration)</h2>
+      <p class="muted" style="margin-top:0">No government stock, bed or attendance feed is connected. To try the full loop, load realistic <strong>SAMPLE</strong> stock, prior counts, bed occupancy and staff attendance for the real facilities of one district. Every sample value is badged SAMPLE.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="sampleDistrict" aria-label="Sample district"></select>
+        <button class="btn" id="loadSample">Load sample dataset</button>
+        <button class="btn danger" id="resetWs" title="Starts an empty workspace. The ledger keeps all history.">Reset workspace</button></div></div>
+    <div class="panel"><h2>Count sheet → Intake agent</h2>
+      <p class="muted" style="margin-top:0">Paste a count sheet (text) or attach a photo. The agent extracts fields (unreadable = empty), validates them, and files a <em>draft</em>. A verifier must still record the count.</p>
+      <form id="intakeForm" style="display:grid;gap:8px">
+        <textarea id="intakeText" placeholder="facility: PHC-...&#10;sku: ...&#10;present: ...&#10;usable: ...&#10;expired: ...&#10;counted by: ..."></textarea>
+        <input type="file" id="intakeImage" accept="image/jpeg,image/png,image/webp" aria-label="Count sheet photo">
+        <button class="btn" type="submit">Run intake agent</button></form>
+      <div id="intakeResult"></div></div>
+    <div class="panel"><h2>Quarantine</h2><div id="quarantineBody"></div></div>
+  </section>
+</main>
+
+<aside class="agent-drawer" id="agentDrawer" hidden aria-label="Agents">
+  <header><strong>Agents</strong><span class="badge b-info">AI suggestion — human decides</span>
+    <button class="btn sm" id="closeAgents" style="margin-left:auto">Close</button></header>
+  <div class="body" id="agentLog"><p class="muted">Agents read the ledger through allowlisted tools. They cannot approve, dispatch, count or edit anything. Every statement cites event ids.</p></div>
+  <form id="agentForm">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <select id="agentName" aria-label="Agent">
+      <option value="ops_copilot">Operations Copilot</option>
+      <option value="resilience_analyst">Resilience Analyst</option>
+      <option value="replan_watcher">Replan Watcher</option>
+      <option value="evidence_agent">Evidence / Audit Agent</option>
+    </select>
+    <select id="agentLang" aria-label="Answer language">
+      <option value="en">English</option><option value="hi">हिन्दी Hindi</option><option value="bn">বাংলা Bengali</option>
+      <option value="te">తెలుగు Telugu</option><option value="mr">मराठी Marathi</option><option value="ta">தமிழ் Tamil</option>
+      <option value="gu">ગુજરાતી Gujarati</option><option value="kn">ಕನ್ನಡ Kannada</option><option value="ml">മലയാളം Malayalam</option>
+      <option value="or">ଓଡ଼ିଆ Odia</option><option value="pa">ਪੰਜਾਬੀ Punjabi</option><option value="ur">اردو Urdu</option>
+    </select>
+    <button class="btn sm" type="button" id="micBtn" aria-pressed="false" title="Speak your question (browser speech recognition)">🎙 Speak</button>
+    </div>
+    <textarea id="agentQuery" required maxlength="2000" placeholder="e.g. Which facilities should be counted first and why?"></textarea>
+    <button class="btn primary" type="submit">Ask</button>
+  </form>
+</aside>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

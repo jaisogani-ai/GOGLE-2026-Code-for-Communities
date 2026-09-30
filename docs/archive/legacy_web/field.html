@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>TATHYON (तथ्य) — National Health Resource Safety Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #070a0e;
+    --surface: #0f141c;
+    --surface-2: #161e29;
+    --surface-3: #202b3a;
+    --ink: #f0f6fc;
+    --ink-2: #c2d1e0;
+    --muted: #7b8e9f;
+    --rule: #253344;
+    --rule-strong: #3b5069;
+    --alert: #f85149;
+    --alert-bg: #2b1111;
+    --go: #2ea043;
+    --go-bg: #0d2818;
+    --warn: #e3b341;
+    --warn-bg: #2d2208;
+    --fact: #58a6ff;
+    --fact-bg: #0f2744;
+    --serif: "Newsreader", Georgia, serif;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 14px; line-height: 1.5;
+    display: flex; justify-content: center; min-height: 100vh;
+  }
+  .app-shell {
+    width: 100%; max-width: 500px; min-height: 100vh;
+    background: var(--surface); border-left: 1px solid var(--rule); border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; position: relative; padding-bottom: 50px;
+  }
+  
+  /* Government Emblem & Header */
+  header.gov-header {
+    background: #090e14; padding: 10px 16px; border-bottom: 2px solid var(--rule-strong);
+    position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center;
+  }
+  .gov-badge { display: flex; align-items: center; gap: 10px; }
+  .ashoka-icon {
+    width: 28px; height: 28px; background: #c29d38; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: 900; color: #000;
+  }
+  .gov-titles h1 {
+    font-family: var(--serif); font-size: 18px; margin: 0; font-weight: 700; color: #fff; letter-spacing: -0.01em; line-height: 1.15;
+  }
+  .gov-titles .sub {
+    font-family: var(--mono); font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .nonce-pill {
+    background: var(--fact-bg); border: 1.5px solid var(--fact); color: var(--fact);
+    padding: 5px 9px; border-radius: 4px; font-family: var(--mono); font-size: 12px; font-weight: 700;
+  }
+
+  /* Target Verification Timer */
+  .target-timer-bar {
+    background: #121820; border-bottom: 1px solid var(--rule); padding: 8px 16px;
+    display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 11px;
+  }
+  .timer-left { display: flex; align-items: center; gap: 8px; color: var(--warn); font-weight: 600; }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); animation: blink 1.5s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .stopwatch-val { color: #fff; font-weight: 700; background: #000; padding: 2px 6px; border-radius: 2px; border: 1px solid var(--rule); }
+  .field-tag { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 9.5px; }
+
+  .content { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  
+  /* Cards */
+  .card {
+    background: var(--surface-2); border: 1px solid var(--rule); border-radius: 4px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card-header {
+    display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule);
+    padding-bottom: 8px; margin-bottom: 2px;
+  }
+  .card-title { font-family: var(--sans); font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink); }
+  .card-title .hi { font-size: 11px; color: var(--muted); font-weight: 500; text-transform: none; margin-left: 4px; }
+  .card-badge { font-family: var(--mono); font-size: 9.5px; padding: 2px 6px; border-radius: 2px; font-weight: 600; }
+  .badge-alert { background: var(--alert-bg); color: var(--alert); border: 1px solid var(--alert); }
+  .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+  .badge-go { background: var(--go-bg); color: var(--go); border: 1px solid var(--go); }
+  .badge-fact { background: var(--fact-bg); color: var(--fact); border: 1px solid var(--fact); }
+
+  /* Preset switcher */
+  .preset-row { display: flex; gap: 8px; }
+  .btn-preset {
+    flex: 1; padding: 10px 8px; background: var(--surface-3); border: 1.5px solid var(--rule-strong);
+    color: var(--ink); font-family: var(--sans); font-size: 11.5px; font-weight: 600; border-radius: 4px;
+    cursor: pointer; text-align: center; line-height: 1.3; transition: all 0.15s ease;
+  }
+  .btn-preset.active { border-color: var(--fact); background: #132233; color: #fff; }
+  .btn-preset:active { transform: scale(0.98); }
+
+  /* Intercept Why Banner */
+  .why-box {
+    background: rgba(248, 81, 73, 0.08); border-left: 3.5px solid var(--alert); padding: 10px 12px;
+    font-size: 12px; color: var(--ink-2); line-height: 1.45; border-radius: 2px;
+  }
+  .why-box b { color: #fff; }
+
+  /* Key-value grid */
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--mono); font-size: 11px; }
+  .meta-item { background: var(--surface); padding: 8px 10px; border-radius: 3px; border: 1px solid var(--rule); }
+  .meta-item .lbl { color: var(--muted); font-size: 9.5px; text-transform: uppercase; margin-bottom: 2px; }
+  .meta-item .val { color: var(--ink); font-weight: 600; word-break: break-all; }
+  .meta-item .val.red { color: var(--alert); }
+  .meta-item .val.green { color: var(--go); }
+
+  /* Frame capture strip */
+  .frames-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .frame-slot {
+    background: #090d12; border: 1.5px dashed var(--rule-strong); border-radius: 4px;
+    aspect-ratio: 3/4; display: flex; flex-direction: column; justify-content: space-between;
+    padding: 6px; position: relative; overflow: hidden;
+  }
+  .frame-slot.captured { border-style: solid; border-color: var(--go); }
+  .frame-slot-hdr { font-family: var(--mono); font-size: 8px; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+  .frame-canvas-wrap {
+    flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden;
+  }
+  .frame-canvas-wrap canvas {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 2px; background: #000;
+  }
+  .frame-preview {
+    flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; color: var(--muted); font-size: 9.5px; padding: 4px 0;
+  }
+  .frame-preview svg { width: 28px; height: 28px; fill: var(--rule-strong); margin-bottom: 4px; }
+  .frame-slot.captured .frame-preview { display: none; }
+  .frame-meta-tag {
+    font-family: var(--mono); font-size: 7.5px; background: rgba(0,0,0,0.7);
+    padding: 2px 4px; border-radius: 2px; color: var(--fact); text-align: center; word-break: break-all;
+  }
+
+  .capture-actions { display: flex; gap: 8px; }
+  .btn-shutter {
+    flex: 2; height: 52px; background: #fff; color: #000; border: none; border-radius: 4px;
+    font-family: var(--sans); font-size: 13.5px; font-weight: 700; cursor: pointer;
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .btn-shutter:active { background: #e0e0e0; transform: scale(0.99); }
+  .btn-camera-upload {
+    flex: 1; height: 52px; background: var(--surface-3); color: var(--ink); border: 1.5px solid var(--rule-strong);
+    border-radius: 4px; font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer;
+    display: flex; justify-content: center; align-items: center; text-align: center;
+  }
+  #file-input { display: none; }
+
+  /* Field Guide guidance card */
+  .guidance-box {
+    background: #111a26; border: 1.5px solid var(--fact); border-radius: 4px; padding: 12px;
+  }
+  .guidance-score-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .guidance-score-row .score { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--fact); }
+  .guidance-text-en { font-size: 12px; color: var(--ink); margin-bottom: 4px; }
+  .guidance-text-hi { font-size: 12px; color: var(--warn); font-family: -apple-system, system-ui; }
+
+  /* Gemini Observed card */
+  .gemini-card {
+    background: #121922; border: 1.5px solid var(--fact); border-radius: 4px; padding: 14px;
+  }
+  .gemini-hdr {
+    display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--rule);
+    padding-bottom: 8px; margin-bottom: 8px;
+  }
+  .gemini-title { font-family: var(--sans); font-size: 13.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+  .gemini-disclaimer {
+    font-size: 10px; color: var(--muted); line-height: 1.35; margin-bottom: 10px; font-family: var(--mono);
+    background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 2px;
+  }
+  .gemini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-family: var(--mono); font-size: 11px; }
+  .gemini-field { background: #0a0e14; padding: 6px 8px; border-radius: 2px; border: 1px solid var(--rule); }
+  .gemini-field .k { color: var(--muted); font-size: 9px; text-transform: uppercase; }
+  .gemini-field .v { color: var(--ink); font-weight: 600; }
+  .gemini-field .v.alert { color: var(--alert); }
+
+  /* Human confirmation & attestation */
+  .confirm-box {
+    background: #121d16; border: 1.5px solid var(--go); border-radius: 4px; padding: 14px;
+  }
+  .confirm-title { font-family: var(--sans); font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .confirm-sub { font-size: 10.5px; color: var(--ink-2); line-height: 1.35; margin-bottom: 12px; }
+  .input-group { margin-bottom: 10px; }
+  .input-group label { display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input {
+    flex: 1; height: 44px; background: #090e14; border: 1.5px solid var(--rule-strong);
+    color: #fff; font-family: var(--mono); font-size: 17px; font-weight: 700; padding: 0 10px; border-radius: 3px;
+  }
+  .btn-zero {
+    padding: 0 12px; height: 44px; background: var(--alert-bg); border: 1px solid var(--alert);
+    color: var(--alert); font-family: var(--sans); font-size: 11.5px; font-weight: 700; border-radius: 3px; cursor: pointer;
+  }
+  .btn-zero:active { opacity: 0.8; }
+
+  .action-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .btn-action {
+    height: 52px; border: none; border-radius: 4px; font-family: var(--sans); font-size: 13.5px;
+    font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
+    transition: transform 0.1s ease;
+  }
+  .btn-action:active { transform: scale(0.99); }
+  .btn-attest { background: var(--go); color: #fff; }
+  .btn-discrepancy { background: #681f1c; color: #ffbcba; border: 1px solid var(--alert); }
+  .btn-retake { background: var(--surface-3); color: var(--ink-2); border: 1px solid var(--rule); }
+
+  /* Commit receipt */
+  .receipt-card {
+    background: #0b140d; border: 2px solid var(--go); border-radius: 4px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px; animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .receipt-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a3824; padding-bottom: 8px; }
+  .receipt-title { font-family: var(--serif); font-size: 16px; font-weight: 700; color: #5cc79c; }
+  .gate-verdict {
+    background: #2b1111; border: 1.5px solid var(--alert); padding: 12px; border-radius: 3px;
+    font-family: var(--mono); font-size: 12px; color: #ffbcba; line-height: 1.45;
+  }
+  .gate-verdict b { color: #fff; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- Government / Operational Header -->
+  <header class="gov-header">
+    <div class="gov-badge">
+      <div class="ashoka-icon">त</div>
+      <div class="gov-titles">
+        <h1>TATHYON <span style="font-weight:400; font-size:12px; color:var(--muted)">· तथ्य</span></h1>
+        <div class="sub" id="header-facility">CHC_RURAL_NORTH · PHARMACIST / NURSE</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="nonce-pill" id="active-nonce">NONCE-7719</div>
+      <a href="/control-room" style="font-family:var(--mono); font-size:10px; color:var(--fact); text-decoration:none; background:var(--surface-2); border:1px solid var(--rule); padding:4px 7px; border-radius:3px;" target="_blank">Control Room ↗</a>
+    </div>
+  </header>
+
+  <!-- Target Verification Timer & Stopwatch -->
+  <div class="target-timer-bar">
+    <div class="timer-left">
+      <span class="pulse-dot"></span>
+      <span>TARGET TIME: &lt; 60s</span>
+      <span class="stopwatch-val" id="stopwatch">00:00.0</span>
+    </div>
+    <div class="field-tag">LOW-BANDWIDTH MODE</div>
+  </div>
+
+  <div class="content">
+    <!-- Presets for Judges -->
+    <div class="card" style="padding:10px 12px;">
+      <div class="card-header" style="border:none; padding:0; margin-bottom:6px;">
+        <span class="card-title" style="font-size:11px; color:var(--muted)">NATIONAL HEALTH CRISIS DEMONSTRATOR</span>
+        <span class="card-badge badge-fact">ONE-TAP PRESETS</span>
+      </div>
+      <div class="preset-row">
+        <button class="btn-preset active" id="load-preset-a" onclick="loadScenario('scenario_a')">
+          ⚡ Scenario A: Rabies Vaccine<br><span style="font-size:9.5px; font-weight:400; color:var(--muted)">200 Vials Expired on Shelf</span>
+        </button>
+        <button class="btn-preset" id="load-preset-b" onclick="loadScenario('scenario_b')">
+          ⚡ Scenario B: ICU Ventilator<br><span style="font-size:9.5px; font-weight:400; color:var(--muted)">18d Breakdown / SLA Fraud</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 1: Verification Request -->
+    <div class="card" id="step-request-card">
+      <div class="card-header">
+        <span class="card-title">1. VERIFICATION REQUEST <span class="hi">सत्यापन अनुरोध</span></span>
+        <span class="card-badge badge-alert" id="req-badge">PROOF REQUIRED</span>
+      </div>
+      <div class="why-box" id="req-why">
+        <b>Why Verification is Required:</b> An automated transfer proposal would move 200 vials of Anti-Rabies Vaccine to PHC_REMOTE_EAST based on an unverified ledger balance. Tathyon intercepted and challenged physical reality.
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <div class="lbl">Asset / Resource SKU</div>
+          <div class="val" id="req-sku">MED_ANTI_RABIES_VACCINE</div>
+        </div>
+        <div class="meta-item">
+          <div class="lbl">Claimed Ledger Stock</div>
+          <div class="val" id="req-claimed">200 vials (UNVERIFIED)</div>
+        </div>
+        <div class="meta-item">
+          <div class="lbl">Single-Use Nonce</div>
+          <div class="val red" id="req-nonce-box">NONCE-7719</div>
+        </div>
+        <div class="meta-item">
+          <div class="lbl">Verification policy</div>
+          <div class="val" id="req-rule">TATHYON second-person review policy</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Multi-Frame Camera Capture -->
+    <div class="card" id="step-capture-card">
+      <div class="card-header">
+        <span class="card-title">2. MULTI-FRAME EVIDENCE BURST <span class="hi">साक्ष्य संग्रह</span></span>
+        <span class="card-badge badge-fact">3-FRAME PROTOCOL</span>
+      </div>
+      <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">
+        Single photos are forbidden to defeat photo-of-a-photo fraud. Capture 3 distinct angles:
+      </div>
+      <div class="frames-strip">
+        <!-- Frame 1 -->
+        <div class="frame-slot" id="slot-1">
+          <div class="frame-slot-hdr">F1: CONTEXT</div>
+          <div class="frame-canvas-wrap" id="wrap-1" style="display:none;">
+            <canvas id="canv-1" width="160" height="213"></canvas>
+          </div>
+          <div class="frame-preview" id="prev-1">
+            <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4V4m2 4v10h12V8H6m2 2h8v6H8v-6Z"/></svg>
+            <span>Shelf Context</span>
+          </div>
+          <div class="frame-meta-tag" id="hash-1">SHA-256 [PENDING]</div>
+        </div>
+        <!-- Frame 2 -->
+        <div class="frame-slot" id="slot-2">
+          <div class="frame-slot-hdr">F2: IDENTIFIER</div>
+          <div class="frame-canvas-wrap" id="wrap-2" style="display:none;">
+            <canvas id="canv-2" width="160" height="213"></canvas>
+          </div>
+          <div class="frame-preview" id="prev-2">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6m0 5h16v2H4v-2m0 5h16v2H4v-2Z"/></svg>
+            <span>Batch Label</span>
+          </div>
+          <div class="frame-meta-tag" id="hash-2">SHA-256 [PENDING]</div>
+        </div>
+        <!-- Frame 3 -->
+        <div class="frame-slot" id="slot-3">
+          <div class="frame-slot-hdr">F3: PROOF</div>
+          <div class="frame-canvas-wrap" id="wrap-3" style="display:none;">
+            <canvas id="canv-3" width="160" height="213"></canvas>
+          </div>
+          <div class="frame-preview" id="prev-3">
+            <svg viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2m0 2a8 8 0 0 1 8 8 8 8 0 0 1-8 8 8 8 0 0 1-8-8 8 8 0 0 1 8-8m-1 3v6l5.25 3.15.75-1.23-4.5-2.67V7h-1.5Z"/></svg>
+            <span>Expiry & Nonce</span>
+          </div>
+          <div class="frame-meta-tag" id="hash-3">SHA-256 [PENDING]</div>
+        </div>
+      </div>
+
+      <div class="capture-actions">
+        <button class="btn-shutter" id="btn-trigger-burst" onclick="triggerBurstCapture()">
+          📸 CAPTURE 3-FRAME BURST
+        </button>
+        <label class="btn-camera-upload" for="file-input">
+          📁 FILE
+        </label>
+        <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFileInput(this)">
+      </div>
+      <div style="display:flex; justify-content:space-between; font-family:var(--mono); font-size:9.5px; color:var(--muted)">
+        <span>SHA-256: <b style="color:var(--go)">IMPLEMENTED</b></span>
+        <span>dHash: <b style="color:var(--warn)">SIMULATED</b></span>
+        <span>NONCE-BOUND: <b id="nonce-bound-label" style="color:var(--muted)">WAITING</b></span>
+      </div>
+    </div>
+
+    <!-- Step 3: Evidence Quality Check -->
+    <div class="guidance-box" id="guidance-card" style="display:none;">
+      <div class="guidance-score-row">
+        <span style="font-family:var(--sans); font-size:12px; font-weight:700; color:#fff">3. FIELD GUIDE INSPECTION <span style="font-size:11px; color:var(--muted)">फील्ड गाइड</span></span>
+        <span class="score" id="guidance-score">SCORE: 94%</span>
+      </div>
+      <div class="guidance-text-en" id="guidance-en">
+        Medicine batch number and expiry stamp clearly captured in frame. Audit challenge verified.
+      </div>
+      <div class="guidance-text-hi" id="guidance-hi">
+        दवा का बैच नंबर और एक्सपायरी डेट स्पष्ट है। सत्यापन कोड फ्रेम में सही पाया गया।
+      </div>
+    </div>
+
+    <!-- Step 4: Gemini Observed -->
+    <div class="gemini-card" id="gemini-card" style="display:none;">
+      <div class="gemini-hdr">
+        <div class="gemini-title">
+          <span>4. Gemini observed</span>
+        </div>
+        <span class="card-badge badge-fact" id="gemini-conf">CONF: 94%</span>
+      </div>
+      <div class="gemini-disclaimer">
+        ⚠️ Gemini is an AI extraction assistant, NOT the source of truth. It transcribes readable label figures. It NEVER invents counts, never signs ledger rows, and cannot authorize government actions.
+      </div>
+      <div class="gemini-grid">
+        <div class="gemini-field">
+          <div class="k">Identifier Read</div>
+          <div class="v" id="gem-id">MED_ANTI_RABIES_VACCINE</div>
+        </div>
+        <div class="gemini-field">
+          <div class="k">Batch Number</div>
+          <div class="v" id="gem-batch">ARB-2024-X9</div>
+        </div>
+        <div class="gemini-field">
+          <div class="k">Expiry Stamp</div>
+          <div class="v alert" id="gem-expiry">2026-03-01 (EXPIRED!)</div>
+        </div>
+        <div class="gemini-field">
+          <div class="k">Visible Status</div>
+          <div class="v alert" id="gem-status">EXPIRED_ON_SHELF</div>
+        </div>
+      </div>
+      <div style="margin-top:6px; font-family:var(--mono); font-size:10px; color:var(--muted);" id="gem-abstained">
+        Abstained fields: [present_qty, usable_qty] · Physical count requires human custodian signature.
+      </div>
+    </div>
+
+    <!-- Step 5: Human Confirmation & Attestation -->
+    <div class="confirm-box" id="confirm-card" style="display:none;">
+      <div class="confirm-title">5. HUMAN CUSTODIAN CONFIRMATION <span style="font-size:11px; color:var(--muted)">मानव सत्यापन</span></div>
+      <div class="confirm-sub">
+        Follow the applicable department and state procedure. TATHYON pilot policy requires a separate verifier; record the custodian's presence where required by the governing procedure. Do not attest to goods you did not inspect.
+      </div>
+      <div class="input-group">
+        <label>PHYSICALLY PRESENT STOCK (VIALS ON SHELF)</label>
+        <div class="input-row">
+          <input type="number" id="input-present" value="200">
+        </div>
+      </div>
+      <div class="input-group">
+        <label>USABLE (NON-EXPIRED) TRANSFERABLE STOCK</label>
+        <div class="input-row">
+          <input type="number" id="input-usable" value="0">
+          <button class="btn-zero" onclick="setZeroUsable()">SET 0 (EXPIRED)</button>
+        </div>
+      </div>
+
+      <div class="action-stack">
+        <button class="btn-action btn-attest" id="btn-submit-attest" onclick="submitAttestation()">
+          ✍️ ATTEST AS INDEPENDENT WITNESS
+        </button>
+        <button class="btn-action btn-discrepancy" onclick="submitDiscrepancy()">
+          🚨 REPORT PHYSICAL DISCREPANCY
+        </button>
+        <button class="btn-action btn-retake" onclick="resetCapture()">
+          🔄 REQUEST RETAKE (POOR QUALITY)
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 6: Immutable Hash-Chain Receipt -->
+    <div class="receipt-card" id="receipt-card" style="display:none;">
+      <div class="receipt-header">
+        <div class="receipt-title">6. IMMUTABLE HASH-CHAIN COMMIT</div>
+        <span class="card-badge badge-go" id="receipt-offset">BLOCK OFFSET #84</span>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <div class="lbl">Attestation ID</div>
+          <div class="val" id="receipt-att-id">att_field_7f921</div>
+        </div>
+        <div class="meta-item">
+          <div class="lbl">Evidence ID</div>
+          <div class="val" id="receipt-evd-id">evd_field_4c810</div>
+        </div>
+        <div class="meta-item" style="grid-column: span 2">
+          <div class="lbl">SHA-256 Ledger Block Hash</div>
+          <div class="val" style="font-size:9.5px;" id="receipt-block-hash">a94f0e9...</div>
+        </div>
+      </div>
+
+      <div class="gate-verdict" id="receipt-verdict">
+        <b>TATHYON GATE REFUSES PROPOSAL:</b><br>
+        Physical evidence proved 200 vials on shelf are 100% EXPIRED (Batch ARB-2024-X9).
+        Verified Transferable Stock is set to <b>0.0 vials</b>.
+        The automated dispatch proposal is blocked. Disaster averted.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentScenario = "scenario_a";
+  let currentRequestId = null;
+  let currentPresetData = null;
+  let activeFrames = [];
+  let stopwatchInterval = null;
+  let elapsedSeconds = 0;
+
+  window.addEventListener("DOMContentLoaded", () => {
+    loadScenario("scenario_a");
+  });
+
+  function startStopwatch() {
+    if (stopwatchInterval) clearInterval(stopwatchInterval);
+    elapsedSeconds = 0;
+    const sw = document.getElementById("stopwatch");
+    stopwatchInterval = setInterval(() => {
+      elapsedSeconds += 0.1;
+      const mins = Math.floor(elapsedSeconds / 60);
+      const secs = (elapsedSeconds % 60).toFixed(1);
+      sw.innerText = `${String(mins).padStart(2, '0')}:${secs < 10 ? '0' : ''}${secs}`;
+    }, 100);
+  }
+
+  function stopStopwatch() {
+    if (stopwatchInterval) clearInterval(stopwatchInterval);
+  }
+
+  async function loadScenario(scenarioId) {
+    currentScenario = scenarioId;
+    resetUI();
+    startStopwatch();
+    try {
+      const res = await fetch(`/field/presets/${scenarioId}`, {
+        headers: { "X-Role": "field_operator" }
+      });
+      if (!res.ok) throw new Error("Failed to load preset");
+      const data = await res.json();
+      currentPresetData = data;
+      const req = data.request;
+      currentRequestId = req.request_id;
+
+      // Update Header & Request Card
+      document.getElementById("header-facility").innerText = `${req.facility_id} · PHARMACIST / NURSE`;
+      document.getElementById("active-nonce").innerText = req.nonce;
+      document.getElementById("req-sku").innerText = req.resource_key;
+      document.getElementById("req-claimed").innerText = `${req.resource_type === "medicine" ? "200 vials" : "100% Uptime"} (UNVERIFIED)`;
+      document.getElementById("req-nonce-box").innerText = req.nonce;
+      document.getElementById("req-why").innerHTML = `<b>Why Verification is Required:</b> ${data.why_text || req.why_required}`;
+
+      if (scenarioId === "scenario_a") {
+        document.getElementById("load-preset-a").classList.add("active");
+        document.getElementById("load-preset-b").classList.remove("active");
+        document.getElementById("input-present").value = "200";
+        document.getElementById("input-usable").value = "0";
+      } else {
+        document.getElementById("load-preset-a").classList.remove("active");
+        document.getElementById("load-preset-b").classList.add("active");
+        document.getElementById("input-present").value = "1";
+        document.getElementById("input-usable").value = "0";
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error loading scenario preset: " + err.message);
+    }
+  }
+
+  function resetUI() {
+    activeFrames = [];
+    for (let i = 1; i <= 3; i++) {
+      const slot = document.getElementById(`slot-${i}`);
+      const wrap = document.getElementById(`wrap-${i}`);
+      const prev = document.getElementById(`prev-${i}`);
+      const hash = document.getElementById(`hash-${i}`);
+      slot.classList.remove("captured");
+      if (wrap) wrap.style.display = "none";
+      if (prev) prev.style.display = "flex";
+      if (hash) hash.innerText = "SHA-256 [PENDING]";
+    }
+    document.getElementById("nonce-bound-label").innerText = "WAITING";
+    document.getElementById("nonce-bound-label").style.color = "var(--muted)";
+    document.getElementById("guidance-card").style.display = "none";
+    document.getElementById("gemini-card").style.display = "none";
+    document.getElementById("confirm-card").style.display = "none";
+    document.getElementById("receipt-card").style.display = "none";
+  }
+
+  // Draw realistic clinical photographs onto canvases
+  function renderClinicalCanvas(frameIdx, scenario, nonce) {
+    const canv = document.getElementById(`canv-${frameIdx}`);
+    if (!canv) return;
+    const ctx = canv.getContext("2d");
+    const w = canv.width;
+    const h = canv.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (scenario === "scenario_a") {
+      if (frameIdx === 1) {
+        // Shelf overview
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#334155"; ctx.fillRect(10, 40, w - 20, 10); ctx.fillRect(10, 100, w - 20, 10); ctx.fillRect(10, 160, w - 20, 10);
+        // Draw boxes
+        ctx.fillStyle = "#0284c7"; ctx.fillRect(20, 50, 40, 48);
+        ctx.fillStyle = "#0369a1"; ctx.fillRect(70, 50, 40, 48);
+        ctx.fillStyle = "#38bdf8"; ctx.fillRect(120, 50, 30, 48);
+        // Header text
+        ctx.fillStyle = "#94a3b8"; ctx.font = "8px monospace"; ctx.fillText("CHC_NORTH_COLD_CHAIN", 15, 25);
+        ctx.fillStyle = "#22c55e"; ctx.fillText("TEMP: 2.8°C", 15, 35);
+      } else if (frameIdx === 2) {
+        // Batch panel zoom
+        ctx.fillStyle = "#f8fafc"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#0284c7"; ctx.fillRect(0, 0, w, 24);
+        ctx.fillStyle = "#ffffff"; ctx.font = "bold 9px sans-serif"; ctx.fillText("RABIES VACCINE IP", 10, 16);
+        ctx.fillStyle = "#0f172a"; ctx.font = "bold 8.5px monospace"; ctx.fillText("BATCH: ARB-2024-X9", 10, 60);
+        ctx.fillStyle = "#ef4444"; ctx.fillText("EXP: 2026-03-01", 10, 85);
+        ctx.fillStyle = "#475569"; ctx.font = "7px sans-serif"; ctx.fillText("Govt of India Supply", 10, 120);
+        ctx.fillText("Not For Sale", 10, 135);
+      } else if (frameIdx === 3) {
+        // Expiry stamp with handwritten nonce slip
+        ctx.fillStyle = "#f1f5f9"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#ef4444"; ctx.font = "bold 10px monospace"; ctx.fillText("EXP: 03/2026", 15, 45);
+        // Yellow paper slip
+        ctx.fillStyle = "#fef08a"; ctx.fillRect(15, 80, w - 30, 80);
+        ctx.strokeStyle = "#ca8a04"; ctx.strokeRect(15, 80, w - 30, 80);
+        ctx.fillStyle = "#1e293b"; ctx.font = "bold 12px monospace"; ctx.fillText(nonce, 25, 125);
+        ctx.font = "7px sans-serif"; ctx.fillStyle = "#854d0e"; ctx.fillText("AUDIT CHALLENGE NONCE", 20, 100);
+      }
+    } else {
+      if (frameIdx === 1) {
+        // Ventilator context
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#475569"; ctx.fillRect(40, 40, w - 80, 120);
+        ctx.fillStyle = "#0284c7"; ctx.fillRect(50, 50, w - 100, 40); // Screen
+        ctx.fillStyle = "#94a3b8"; ctx.font = "8px monospace"; ctx.fillText("DH_SOUTH_ICU_BED_04", 15, 25);
+      } else if (frameIdx === 2) {
+        // Metal tag
+        ctx.fillStyle = "#cbd5e1"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#1e293b"; ctx.font = "bold 9px monospace"; ctx.fillText("MODEL: MedVent-900", 15, 50);
+        ctx.fillText("ASSET: VENT_ICU_04", 15, 75);
+        ctx.fillText("S/N: 9921-IN", 15, 100);
+      } else if (frameIdx === 3) {
+        // Screen error & nonce
+        ctx.fillStyle = "#450a0a"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#f87171"; ctx.font = "bold 9px monospace"; ctx.fillText("FAULT CODE: E402", 15, 50);
+        ctx.fillText("DOWN: 18 DAYS", 15, 75);
+        // Yellow paper slip
+        ctx.fillStyle = "#fef08a"; ctx.fillRect(15, 100, w - 30, 70);
+        ctx.fillStyle = "#1e293b"; ctx.font = "bold 12px monospace"; ctx.fillText(nonce, 25, 145);
+      }
+    }
+  }
+
+  async function triggerBurstCapture() {
+    if (!currentPresetData) return;
+    const btn = document.getElementById("btn-trigger-burst");
+    btn.innerText = "CAPTURING 3 FRAMES...";
+    btn.disabled = true;
+
+    setTimeout(async () => {
+      activeFrames = currentPresetData.preset_frames;
+      try {
+        const resp = await fetch("/field/verification/capture", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Role": "field_operator"
+          },
+          body: JSON.stringify({
+            request_id: currentRequestId,
+            frames: activeFrames,
+            device_id: "android_phc_mobile_01"
+          })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || "Capture failed");
+        }
+        const data = await resp.json();
+        renderCaptureResult(data);
+      } catch (e) {
+        alert("Capture error: " + e.message);
+      } finally {
+        btn.innerText = "📸 CAPTURE 3-FRAME BURST";
+        btn.disabled = false;
+      }
+    }, 350);
+  }
+
+  function renderCaptureResult(data) {
+    const frames = data.frames || [];
+    frames.forEach((f, idx) => {
+      const slot = document.getElementById(`slot-${idx + 1}`);
+      const wrap = document.getElementById(`wrap-${idx + 1}`);
+      const prev = document.getElementById(`prev-${idx + 1}`);
+      const hash = document.getElementById(`hash-${idx + 1}`);
+      if (slot && hash) {
+        slot.classList.add("captured");
+        if (wrap) wrap.style.display = "flex";
+        if (prev) prev.style.display = "none";
+        renderClinicalCanvas(idx + 1, currentScenario, currentPresetData.request.nonce);
+        hash.innerText = f.artifact_hash.substring(0, 10) + "...";
+      }
+    });
+
+    const nonceBound = document.getElementById("nonce-bound-label");
+    if (data.nonce_matched) {
+      nonceBound.innerText = "BOUND & MATCHED";
+      nonceBound.style.color = "var(--go)";
+    }
+
+    const guidance = data.field_guidance || {};
+    document.getElementById("guidance-card").style.display = "block";
+    document.getElementById("guidance-score").innerText = `SCORE: ${Math.round((guidance.quality_score || 0.94) * 100)}%`;
+    if (guidance.suggestions && guidance.suggestions.length) {
+      document.getElementById("guidance-en").innerText = guidance.suggestions[0];
+    }
+    if (guidance.hindi_suggestions && guidance.hindi_suggestions.length) {
+      document.getElementById("guidance-hi").innerText = guidance.hindi_suggestions[0];
+    }
+
+    const gem = data.gemini_observation || {};
+    document.getElementById("gemini-card").style.display = "block";
+    document.getElementById("gemini-conf").innerText = `CONF: ${Math.round((gem.confidence || 0.94) * 100)}%`;
+    document.getElementById("gem-id").innerText = gem.identifier || "N/A";
+    document.getElementById("gem-batch").innerText = gem.batch || "N/A";
+    document.getElementById("gem-expiry").innerText = gem.expiry ? `${gem.expiry} (EXPIRED!)` : "N/A";
+    document.getElementById("gem-status").innerText = gem.visible_status || "OBSERVED";
+
+    document.getElementById("confirm-card").style.display = "block";
+    document.getElementById("confirm-card").scrollIntoView({ behavior: "smooth" });
+  }
+
+  function setZeroUsable() {
+    document.getElementById("input-usable").value = "0";
+  }
+
+  async function submitAttestation() {
+    stopStopwatch();
+    const presentVal = parseFloat(document.getElementById("input-present").value) || 0;
+    const usableVal = parseFloat(document.getElementById("input-usable").value) || 0;
+    const btn = document.getElementById("btn-submit-attest");
+    btn.disabled = true;
+    btn.innerText = "SIGNING HASH-CHAIN...";
+
+    try {
+      const resp = await fetch("/field/verification/attest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Role": "facility_incharge"
+        },
+        body: JSON.stringify({
+          request_id: currentRequestId,
+          observed_fields: {
+            present_qty: presentVal,
+            usable_qty: usableVal,
+            batch: currentScenario === "scenario_a" ? "ARB-2024-X9" : null,
+            status: currentScenario === "scenario_a" ? "EXPIRED_ON_SHELF" : "DEFECTIVE",
+            condition: usableVal === 0 ? "EXPIRED_OR_DEFECTIVE" : "VERIFIED_USABLE"
+          },
+          attestor_id: "staff_nurse_priya",
+          attestor_role: "facility_incharge",
+          is_custodian: false,
+          seconds_spent: Math.max(elapsedSeconds, 42.0)
+        })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || "Attestation rejected");
+      }
+
+      const result = await resp.json();
+      renderReceipt(result);
+    } catch (e) {
+      alert("Attestation Error: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "✍️ ATTEST AS INDEPENDENT WITNESS";
+    }
+  }
+
+  async function submitDiscrepancy() {
+    stopStopwatch();
+    try {
+      const resp = await fetch("/field/verification/discrepancy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Role": "facility_incharge"
+        },
+        body: JSON.stringify({
+          request_id: currentRequestId,
+          discrepancy_code: currentScenario === "scenario_a" ? "EXPIRED_MEDICINE_ON_SHELF" : "BROKEN_EQUIPMENT_DOWNTIME",
+          discrepancy_notes: "Physical inspection reveals batch expired. Stock unusable.",
+          attestor_id: "staff_nurse_priya",
+          attestor_role: "facility_incharge",
+          seconds_spent: Math.max(elapsedSeconds, 30.0)
+        })
+      });
+      const result = await resp.json();
+      renderReceipt(result);
+    } catch (e) {
+      alert("Discrepancy Error: " + e.message);
+    }
+  }
+
+  function renderReceipt(res) {
+    document.getElementById("receipt-card").style.display = "flex";
+    document.getElementById("receipt-offset").innerText = `BLOCK OFFSET #${res.block_offset}`;
+    document.getElementById("receipt-att-id").innerText = res.attestation_id || "att_field_live";
+    document.getElementById("receipt-evd-id").innerText = res.evidence_id || "evd_field_live";
+    document.getElementById("receipt-block-hash").innerText = res.block_hash || "sha256_root";
+    document.getElementById("receipt-verdict").innerHTML = `
+      <b>GATE DECISION: ${res.tathyon_gate_action}</b><br>
+      ${res.narrative}
+    `;
+    document.getElementById("receipt-card").scrollIntoView({ behavior: "smooth" });
+  }
+
+  function resetCapture() {
+    resetUI();
+    startStopwatch();
+    if (currentPresetData) {
+      document.getElementById("req-sku").innerText = currentPresetData.request.resource_key;
+    }
+  }
+
+  function handleFileInput(input) {
+    if (input.files && input.files[0]) {
+      triggerBurstCapture();
+    }
+  }
+</script>
+
+</body>
+</html>

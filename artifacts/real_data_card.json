@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-09-30T13:24:55.256924+00:00",
+  "status": "AWAITING_FIELD_ATTESTATIONS",
+  "reason": "Public health supply chain transaction ledgers and human-attested shelf count discrepancies are sovereign, restricted data and do not exist in unvetted public datasets.",
+  "osm_bastar_facilities": "Available (238 real facilities in Bastar, Chhattisgarh)",
+  "modules_supported": [
+    "medicine (18 features)",
+    "beds (10 features)",
+    "personnel (10 features)"
+  ],
+  "p6_thresholds": {
+    "medicine_relative_discrepancy": "> 15%",
+    "medicine_usable_share_floor": "< 70%",
+    "bed_free_gap": ">= 2 beds or > 15%",
+    "personnel_absence_gap": ">= 3.0 hours or 0.0h present"
+  },
+  "supervised_training_possible": false,
+  "next_steps": "Drop real DVDMS CSV export to data/real/dvdms_ledger.csv and pair with pilot_ground_truth_checklist.md attestations."
+}

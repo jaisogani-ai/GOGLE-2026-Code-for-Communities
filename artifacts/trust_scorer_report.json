@@ -1,0 +1,320 @@
+{
+  "provenance": "SYNTHETIC",
+  "question": "Which facility x SKU stock reports should get a physical count this month?",
+  "split": {
+    "train_seeds": [
+      1001,
+      1002,
+      1003,
+      1004,
+      1005,
+      1006,
+      1007,
+      1008,
+      1009,
+      1010,
+      1011,
+      1012,
+      1013,
+      1014
+    ],
+    "test_seeds": [
+      2001,
+      2002,
+      2003,
+      2004
+    ],
+    "leakage_rule": "split by seed; features causal and truth-free"
+  },
+  "model": {
+    "name": "gbc",
+    "params": {
+      "n_estimators": 200,
+      "max_depth": 4,
+      "learning_rate": 0.03,
+      "subsample": 0.8,
+      "random_state": 0
+    },
+    "train_rows": 42000,
+    "train_base_rate": 0.0225,
+    "feature_importance": {
+      "t1_violations_now": 0.6137,
+      "burn_inconsistency_30d": 0.303,
+      "att_last_unusable_share": 0.0506,
+      "burn_recon_gap_since_count": 0.0075,
+      "t2_qty_z_now": 0.0062,
+      "gp_uncertainty_ratio": 0.0045,
+      "gp_unobserved_ratio": 0.0034,
+      "t2_expired_but_stocked": 0.003,
+      "t1_violation_days_30d": 0.0028,
+      "burn_issue_rate_ratio": 0.0025,
+      "t1_arithmetic_days_30d": 0.0013,
+      "att_count": 0.0006,
+      "gp_days_since_attestation": 0.0003,
+      "t1_expiry_integrity_now": 0.0002,
+      "t2_weak_signal_days_30d": 0.0002,
+      "t2_entry_lag_log": 0.0002,
+      "att_never": 0.0,
+      "att_last_record_gap": 0.0
+    }
+  },
+  "features": {
+    "t1_violations_now": "Number of tier-1 hard violations on today's record (arithmetic, negative consumption, issue against expired batch, absurd unit value, missing expiry, corrupt quantity, chronology, causal batch/expiry conflict).",
+    "t1_violation_days_30d": "Days in the last 30 with at least one tier-1 violation.",
+    "t1_arithmetic_days_30d": "Days in the last 30 where closing != opening + receipts - issues.",
+    "t1_expiry_integrity_now": "1 if today's batch has been recorded with two expiry dates so far, or today's record has no expiry date.",
+    "t2_weak_signal_days_30d": "Days in the last 30 carrying a weak signal: quantity outlier against the series' own trailing history, a round-number balance, or retroactive bulk entry.",
+    "t2_qty_z_now": "Today's reported stock as a z-score against the series' own trailing 28-day mean and spread (facility-relative, so a big hospital is not 'odd').",
+    "t2_entry_lag_log": "log(1 + days between the event and its ledger entry).",
+    "t2_expired_but_stocked": "1 if the recorded expiry is already past and stock is still reported.",
+    "gp_days_since_attestation": "Days since the last human count strictly before today (365 if never counted).",
+    "gp_unobserved_ratio": "Expected consumption since the last count, from the Gamma-Poisson posterior over the trailing 28 days, divided by reported stock.",
+    "gp_uncertainty_ratio": "Spread of that posterior (q90 minus mean) divided by reported stock: how much could have left unobserved.",
+    "att_count": "Number of human counts of this series before today.",
+    "att_never": "1 if this series has never been physically counted.",
+    "att_last_record_gap": "At the last count: |reported - counted present| / counted present. Was the record wrong the last time anyone looked?",
+    "att_last_unusable_share": "At the last count: share of present stock that was not usable (expired or damaged stock found on the shelf).",
+    "burn_inconsistency_30d": "|change in reported stock over 30 days - (receipts - issues)| / reported stock: stock that moved without a transaction.",
+    "burn_recon_gap_since_count": "|reported today - (last count + receipts - issues since)| / reported stock (0 if never counted).",
+    "burn_issue_rate_ratio": "Mean issues over the last 7 days / mean over the last 30 days."
+  },
+  "classifier_test": {
+    "rows": 12000,
+    "positives": 278,
+    "base_rate": 0.0232,
+    "pr_auc": 0.9309,
+    "pr_auc_over_base_rate": 40.18,
+    "roc_auc": 0.9956,
+    "brier": 0.00329
+  },
+  "triage_at_fixed_budget": {
+    "budget_counts_per_month": 20,
+    "months": 60,
+    "wrong_reports_per_month": 4.63,
+    "random": {
+      "hit_rate": 0.0237,
+      "recall": 0.1008
+    },
+    "ceiling_hit_rate": 0.2317,
+    "trained_scorer": {
+      "hit_rate": 0.2275,
+      "recall": 0.9858,
+      "lift_vs_random": 9.61
+    },
+    "oldest_count_first": {
+      "hit_rate": 0.0192,
+      "recall": 0.0785,
+      "lift_vs_random": 0.81
+    },
+    "tier1_rule": {
+      "hit_rate": 0.1983,
+      "recall": 0.8697,
+      "lift_vs_random": 8.38
+    }
+  },
+  "ablation_without_tier1_features": {
+    "classifier_test": {
+      "rows": 12000,
+      "positives": 278,
+      "base_rate": 0.0232,
+      "pr_auc": 0.8931,
+      "pr_auc_over_base_rate": 38.55,
+      "roc_auc": 0.9939,
+      "brier": 0.00484
+    },
+    "trained_scorer": {
+      "hit_rate": 0.225,
+      "recall": 0.9671,
+      "lift_vs_random": 9.51
+    }
+  },
+  "logistic_regression_comparison": {
+    "classifier_test": {
+      "rows": 12000,
+      "positives": 278,
+      "base_rate": 0.0232,
+      "pr_auc": 0.8955,
+      "pr_auc_over_base_rate": 38.65,
+      "roc_auc": 0.9692,
+      "brier": 0.00381
+    },
+    "trained_scorer": {
+      "hit_rate": 0.2142,
+      "recall": 0.9326,
+      "lift_vs_random": 9.05
+    }
+  },
+  "silent_errors": {
+    "wrong_reports": 278,
+    "silent_wrong_reports": 23,
+    "silent_share": 0.0827,
+    "silent_caught_in_top_k": 19,
+    "silent_recall_at_budget": 0.8261,
+    "random_expected_recall": 0.1
+  },
+  "failure_cases": {
+    "confident_false_alarms": [
+      {
+        "seed": 2002,
+        "date": "2026-07-02",
+        "facility_id": "FAC015",
+        "sku": "CEFX500",
+        "reported_stock": 241.4,
+        "p_wrong": 0.9855,
+        "t1_violations_now": 2.0,
+        "burn_inconsistency_30d": 0.6516,
+        "gp_days_since_attestation": 365.0
+      },
+      {
+        "seed": 2002,
+        "date": "2026-08-27",
+        "facility_id": "FAC013",
+        "sku": "IFA100",
+        "reported_stock": 0.0,
+        "p_wrong": 0.9606,
+        "t1_violations_now": 0.0,
+        "burn_inconsistency_30d": 0.0,
+        "gp_days_since_attestation": 28.0
+      },
+      {
+        "seed": 2001,
+        "date": "2026-08-27",
+        "facility_id": "FAC013",
+        "sku": "AMX250",
+        "reported_stock": 0.0,
+        "p_wrong": 0.957,
+        "t1_violations_now": 0.0,
+        "burn_inconsistency_30d": 0.0,
+        "gp_days_since_attestation": 28.0
+      },
+      {
+        "seed": 2001,
+        "date": "2026-07-30",
+        "facility_id": "FAC001",
+        "sku": "ORS01",
+        "reported_stock": 273.6,
+        "p_wrong": 0.9387,
+        "t1_violations_now": 2.0,
+        "burn_inconsistency_30d": 0.9221,
+        "gp_days_since_attestation": 30.0
+      },
+      {
+        "seed": 2003,
+        "date": "2026-06-04",
+        "facility_id": "FAC012",
+        "sku": "PCM500",
+        "reported_stock": 501.0,
+        "p_wrong": 0.5179,
+        "t1_violations_now": 1.0,
+        "burn_inconsistency_30d": 0.4363,
+        "gp_days_since_attestation": 365.0
+      }
+    ],
+    "missed_wrong_reports": [
+      {
+        "seed": 2002,
+        "date": "2026-05-07",
+        "facility_id": "FAC015",
+        "sku": "METRO4",
+        "reported_stock": 161.0,
+        "p_wrong": 0.0065,
+        "t1_violations_now": 1.0,
+        "burn_inconsistency_30d": 0.1491,
+        "gp_days_since_attestation": 365.0
+      },
+      {
+        "seed": 2004,
+        "date": "2026-08-27",
+        "facility_id": "FAC009",
+        "sku": "MTFM500",
+        "reported_stock": 17.0,
+        "p_wrong": 0.0074,
+        "t1_violations_now": 0.0,
+        "burn_inconsistency_30d": 0.0,
+        "gp_days_since_attestation": 365.0
+      },
+      {
+        "seed": 2004,
+        "date": "2026-04-23",
+        "facility_id": "FAC017",
+        "sku": "SALB",
+        "reported_stock": 478.0,
+        "p_wrong": 0.0094,
+        "t1_violations_now": 0.0,
+        "burn_inconsistency_30d": 1.7987,
+        "gp_days_since_attestation": 365.0
+      },
+      {
+        "seed": 2003,
+        "date": "2026-02-26",
+        "facility_id": "FAC019",
+        "sku": "AMX250",
+        "reported_stock": 200.0,
+        "p_wrong": 0.0095,
+        "t1_violations_now": 1.0,
+        "burn_inconsistency_30d": 0.0,
+        "gp_days_since_attestation": 365.0
+      },
+      {
+        "seed": 2003,
+        "date": "2026-03-12",
+        "facility_id": "FAC019",
+        "sku": "AMX250",
+        "reported_stock": 103.0,
+        "p_wrong": 0.0102,
+        "t1_violations_now": 1.0,
+        "burn_inconsistency_30d": 0.0,
+        "gp_days_since_attestation": 365.0
+      }
+    ]
+  },
+  "assumptions": {
+    "visit_budget": "20 counts (triage) / 20 half-day slots (queue) per month",
+    "consequence_horizon_days": 30.0,
+    "district_warehouse_xy": [
+      50.0,
+      50.0
+    ],
+    "count_hours": 1.0,
+    "slot_hours": 4.0,
+    "over_report_share_if_wrong": 0.9989,
+    "usable_share_if_over_reported": 0.4196,
+    "essentiality": "WHO/MSH VEN classes, weights V=3 E=2 N=1 (policy input)",
+    "demand": "per-series backtest-selected forecaster (tathyon.forecast.select_model)"
+  },
+  "verdict": {
+    "lift_vs_random": 9.61,
+    "honest_bar": 2.2,
+    "clears_bar": true,
+    "hit_rate_minus_tier1_rule": 0.0292,
+    "reading": "Held-out lift 9.61x over random at 20 counts/month (bar 2.2x); ceiling hit-rate 0.2317. The signal is the ledger failing to reconcile with its own transactions: a plain tier-1 rule reaches 0.1983 vs the scorer's 0.2275, and dropping tier-1 features leaves 0.225 because burn-rate inconsistency sees the same event. This generator's errors are mostly one-day spikes that break arithmetic; only 8% of wrong reports are silent (no tier-1 flag), and those are recalled at 83%. Real ledgers with internally consistent phantom stock will be harder: treat these numbers as an upper bound on this generator, not a forecast of field performance.",
+    "queue_hidden_days_vs_p_wrong_only": 1.052,
+    "queue_hidden_days_vs_random": 13.81,
+    "queue_hidden_days_vs_median_plugin": 1.955
+  },
+  "queue_decision": {
+    "visit_slot_budget_per_month": 20,
+    "months": 60,
+    "true_hidden_essential_stockout_days_available": 3959.2,
+    "tathyon_queue": {
+      "true_hidden_essential_stockout_days_caught": 3531.0,
+      "wrong_reports_caught": 264.0
+    },
+    "median_plugin_queue": {
+      "true_hidden_essential_stockout_days_caught": 1806.0,
+      "wrong_reports_caught": 89.0
+    },
+    "p_wrong_only": {
+      "true_hidden_essential_stockout_days_caught": 3355.5,
+      "wrong_reports_caught": 268.0
+    },
+    "oldest_count_first": {
+      "true_hidden_essential_stockout_days_caught": 9.4,
+      "wrong_reports_caught": 16.0
+    },
+    "random": {
+      "true_hidden_essential_stockout_days_caught": 255.6,
+      "wrong_reports_caught": 17.5
+    }
+  }
+}

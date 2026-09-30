@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-09-28T19:18:17.719428+00:00",
+  "platform": "Darwin arm64 (Local Mac)",
+  "model_serving": "GradientBoostingClassifier-RealPilot",
+  "training_rows": 132,
+  "roles_evaluated": {
+    "role_a_intake": {
+      "status": "SUCCESS",
+      "latency_ms": 0.46,
+      "disclaimer_present": true,
+      "allowlist_adherence": 1.0
+    },
+    "role_b_data_quality": {
+      "status": "SUCCESS",
+      "latency_ms": 0.11,
+      "disclaimer_present": true,
+      "allowlist_adherence": 1.0
+    },
+    "role_c_forecast_explainer": {
+      "status": "SUCCESS",
+      "latency_ms": 0.08,
+      "disclaimer_present": true,
+      "allowlist_adherence": 1.0
+    },
+    "role_d_ops_copilot": {
+      "status": "SUCCESS",
+      "latency_ms": 0.06,
+      "citations_count": 1,
+      "disclaimer_present": true,
+      "allowlist_adherence": 1.0
+    },
+    "role_e_allocation_explainer": {
+      "status": "SUCCESS",
+      "latency_ms": 0.06,
+      "disclaimer_present": true,
+      "allowlist_adherence": 1.0
+    },
+    "role_f_federation_steward": {
+      "status": "SUCCESS",
+      "latency_ms": 0.06,
+      "disclaimer_present": true,
+      "allowlist_adherence": 1.0
+    }
+  },
+  "copilot_agent_status": {
+    "status": "OPERATIONAL_AND_GROUNDED",
+    "advisory_only": true,
+    "read_only_allowlist_enforced": true,
+    "consequential_action_refusal_verified": true,
+    "served_by_real_model": "GradientBoostingClassifier-RealPilot"
+  }
+}

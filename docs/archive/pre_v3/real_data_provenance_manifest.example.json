@@ -1,0 +1,13 @@
+{
+  "manifest_version": "1",
+  "source_kind": "authorized_operational_export",
+  "source_system": "DVDMS_OR_E_AUSHADHI",
+  "source_owner": "AUTHORIZING_HEALTH_DEPARTMENT_OR_CORPORATION",
+  "source_sha256": "REPLACE_WITH_64_CHARACTER_SHA256_OF_EXACT_CSV",
+  "authorization_reference": "REPLACE_WITH_DATA_SHARING_OR_EXPORT_AUTHORIZATION_ID",
+  "authorization_record_sha256": "REPLACE_WITH_64_CHARACTER_SHA256_OF_AUTHORIZATION_RECORD",
+  "attestation_record_sha256": "REPLACE_WITH_64_CHARACTER_SHA256_OF_HUMAN_ATTESTATION_RECORD",
+  "attestation_reviewed_by": "REVIEWING_OFFICER_ROLE_OR_ID",
+  "attestation_protocol_version": "P6",
+  "reviewed_at": "YYYY-MM-DDTHH:MM:SSZ"
+}
