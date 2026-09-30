@@ -172,4 +172,6 @@ class HardeningMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
         if request.url.path.startswith(("/api/", "/health")):
             response.headers.setdefault("Cache-Control", "no-store")
+        elif request.url.path == "/":
+            response.headers.setdefault("Cache-Control", "no-cache")  # always pick up new asset versions
         return response

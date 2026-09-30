@@ -51,20 +51,29 @@ async function act(fn, okMsg) {
 }
 
 /* ---------- badges ---------- */
+const icon = (name) => h("span", { class: "ms", "aria-hidden": "true" }, name);
 function prov(p) {
   const v = String(p || "UNKNOWN");
   const cls = v.includes("SYNTHETIC") || v.includes("HYPOTHETICAL") || v.startsWith("SAMPLE") ? "b-synthetic" : v.includes("SIMULATED") ? "b-simulated"
     : v === "REAL_PUBLIC_OSM" ? "b-real" : v.includes("ATTESTED") ? "b-verified" : v.includes("USER") || v.includes("REAL_USER") ? "b-user"
     : v.includes("NOT_CONFIGURED") || v === "UNKNOWN" ? "b-nc" : "b-info";
   const label = { REAL_PUBLIC_OSM: "REAL · OSM", USER_SUPPLIED_UNVERIFIED: "USER-SUPPLIED", REAL_USER_PROVIDED: "USER-SUPPLIED",
-    HUMAN_ATTESTED: "VERIFIED COUNT", SYNTHETIC: "SYNTHETIC" }[v] || v.replaceAll("_", " ");
-  return h("span", { class: `badge ${cls}`, title: v }, label);
+    HUMAN_ATTESTED: "VERIFIED COUNT", SYNTHETIC: "SYNTHETIC", SAMPLE: "SAMPLE" }[v] || v.replaceAll("_", " ");
+  const glyph = { "b-real": "public", "b-verified": "verified", "b-user": "upload_file", "b-synthetic": "science", "b-nc": "block" }[cls] || "info";
+  return h("span", { class: `badge ${cls}`, title: v }, icon(glyph), label);
 }
-const stateBadge = (s) => h("span", { class: `badge ${s === "VERIFIED" ? "b-verified" : "b-unverified"}` }, s || "—");
-const actBadge = (a) => h("span", { class: `badge act-${a}` }, a);
-const statusBadge = (s) => h("span", { class: `badge ${/REJECT|INVALID|REPLAN|FAIL|PHANTOM|PARTIAL|DELAYED/.test(s) ? "b-bad"
-  : /APPROVED|RECEIVED$|DISPATCHED|CONSISTENT|VERIFIED/.test(s) ? "b-ok" : /CONTINGENT|PROPOSED|PENDING|OPEN/.test(s) ? "b-warn" : "b-nc"}` }, s || "—");
-const empty = (title, body) => h("div", { class: "empty" }, h("strong", {}, title), body);
+const stateBadge = (s) => h("span", { class: `badge ${s === "VERIFIED" ? "b-verified" : "b-unverified"}` },
+  icon(s === "VERIFIED" ? "verified" : "help"), s === "VERIFIED" ? "VERIFIED" : "UNVERIFIED");
+const ACT_ICON = { VERIFY: "fact_check", TRANSFER: "local_shipping", ESCALATE: "priority_high", WAIT: "schedule", MONITOR: "visibility" };
+const actBadge = (a) => h("span", { class: `badge act-${a}` }, icon(ACT_ICON[a] || "info"), a);
+function statusBadge(s) {
+  const bad = /REJECT|INVALID|REPLAN|FAIL|PHANTOM|PARTIAL|DELAYED|REFUSED|QUARANTINED/.test(s || "");
+  const ok = /APPROVED|RECEIVED$|DISPATCHED|CONSISTENT|VERIFIED|^OK$|DRAFT_FILED/.test(s || "");
+  const warn = /CONTINGENT|PROPOSED|PENDING|OPEN|IN_TRANSIT|DEGRADED/.test(s || "");
+  const [cls, g] = bad ? ["b-bad", "error"] : ok ? ["b-ok", "check_circle"] : warn ? ["b-warn", "schedule"] : ["b-nc", "radio_button_unchecked"];
+  return h("span", { class: `badge ${cls}` }, icon(g), (s || "—").replaceAll("_", " "));
+}
+const empty = (title, body, glyph = "inbox") => h("div", { class: "empty" }, icon(glyph), h("strong", {}, title), body);
 const canDo = (...roles) => S.user && roles.includes(S.user.role);
 
 /* ---------- identity + status ---------- */
@@ -76,27 +85,43 @@ async function signIn(userKey, facilityId) {
   const r = await api("/api/auth/session", { method: "POST", body: { user: userKey, facility_id: facilityId || null } });
   S.token = r.token; S.user = r.user; store.set("tathyon.token", r.token); store.set("tathyon.user", userKey);
 }
+function chip(cls, glyph, text, title) { return h("span", { class: `chip ${cls}`, title: title || "" }, icon(glyph), text); }
 function renderStatus() {
   const st = S.status, strip = $("statusStrip"); strip.replaceChildren();
   if (!st) return;
-  const g = st.gemini, m = st.maps;
+  const g = st.gemini, m = st.maps, t3 = m.tiles_3d.state === "AVAILABLE";
   strip.append(
-    h("span", { class: "badge b-real", title: "Data sources: public registry, uploads, human counts" }, `DATA · ${S.ws?.environment || "—"}`),
-    h("span", { class: `badge ${g.configured ? "b-ok" : "b-nc"}`, title: g.fallback }, g.configured ? `GEMINI · ${g.model}` : "GEMINI · NOT CONFIGURED"),
-    h("span", { class: `badge ${m.basemap === "GOOGLE_MAPS_JS" ? "b-ok" : "b-nc"}` }, m.basemap === "GOOGLE_MAPS_JS" ? "MAPS · GOOGLE" : "MAPS · OSM"),
-    h("span", { class: `badge ${m.routes_provider === "GOOGLE_ROUTES_API" ? "b-ok" : "b-nc"}` }, `ROUTES · ${m.routes_provider === "GOOGLE_ROUTES_API" ? "GOOGLE" : "NOT CONFIGURED"}`),
-    h("span", { class: `badge ${m.tiles_3d.state === "AVAILABLE" ? "b-ok" : "b-nc"}`, title: m.tiles_3d.reason || "" }, `3D · ${m.tiles_3d.state.replaceAll("_", " ")}`),
-    h("span", { class: `badge ${S.chain === false ? "b-bad" : "b-ok"}` }, S.chain === false ? "LEDGER · TAMPERED" : "LEDGER · INTACT"),
-    h("span", { class: "badge b-nc", title: "Polls this workspace's ledger every 15 s and refreshes when it changes. Not a government feed." },
-      `MONITOR · ${S.updatedAt ? S.updatedAt.toLocaleTimeString() : "—"}`));
+    chip(g.configured ? "b-ok" : "b-nc", "auto_awesome", g.configured ? `Gemini · ${g.model}` : "Gemini · not configured", g.fallback),
+    chip(m.basemap === "GOOGLE_MAPS_JS" ? "b-ok" : "b-nc", "map", m.basemap === "GOOGLE_MAPS_JS" ? "Google Maps" : "OSM basemap"),
+    chip(m.routes_provider === "GOOGLE_ROUTES_API" ? "b-ok" : "b-nc", "route", m.routes_provider === "GOOGLE_ROUTES_API" ? "Google Routes" : "Routes · not configured"),
+    chip(t3 ? "b-ok" : "b-warn", "view_in_ar", t3 ? "3D Tiles" : "3D · API disabled", m.tiles_3d.reason || ""),
+    chip(S.chain === false ? "b-bad" : "b-ok", S.chain === false ? "gpp_bad" : "lock", S.chain === false ? "Ledger tampered" : "Ledger intact"),
+    chip("b-nc", "sync", S.updatedAt ? S.updatedAt.toLocaleTimeString() : "—", "Polls this workspace's ledger every 15 s. Not a government feed."));
+  const pill = $("envPill");
+  pill.textContent = S.ws?.has_sample_data ? "Data: real OSM facilities + SAMPLE stock" : S.ws?.reports ? "Data: real facilities + uploaded reports" : "Data: public registry only";
+  $("envBuild").textContent = `BUILD-2026.02-STG.IND`;
+  $("pipeDot").className = `dot${S.chain === false ? " off" : ""}`;
+  if ($("pipeTitle")) $("pipeTitle").textContent = S.ws?.facilities ? "Active OpenStreetMap Sync" : "Offline Staging Sync";
+  if ($("pipeHb")) $("pipeHb").textContent = `Last Heartbeat: ${new Date().toLocaleTimeString("en-IN")} IST`;
+  if ($("deskId")) {
+    const d = S.ws?.facility_districts?.[0];
+    $("deskId").textContent = d ? `${d.slice(0, 3).toUpperCase()}-ND-04` : "OD-KHD-04";
+  }
+  if ($("pipeText")) {
+    $("pipeText").textContent = `Ledger ${S.chain === false ? "BROKEN" : "intact"} · ${S.ws?.events ?? 0} events\nLast sync ${S.updatedAt ? S.updatedAt.toLocaleTimeString() : "—"}\n${S.ws?.facilities ?? 0} facilities · ${S.ws?.reports ?? 0} reports`;
+    $("pipeText").style.whiteSpace = "pre-line";
+  }
 }
 
 /* ---------- tabs ---------- */
 function show(view) {
   S.view = view;
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === view)));
+  document.querySelectorAll(".side-nav button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   document.querySelectorAll("section.view").forEach((s) => { s.hidden = s.id !== `view-${view}`; });
   if (view === "map") renderMap();
+  if (view === "briefing") renderBriefMap();
+  window.scrollTo({ top: 0 });
 }
 
 /* ---------- data loading ---------- */
@@ -105,19 +130,110 @@ async function refreshAll() {
     api("/api/workspace"), api(`/api/trust/queue?verifier_hours=${Number($("queueHours").value) || 6}${$("queueSku").value ? `&sku=${encodeURIComponent($("queueSku").value)}` : ""}`),
     api("/api/plans"), api("/api/outcome"), api(`/api/events?limit=300${$("auditType").value ? `&event_type=${$("auditType").value}` : ""}`)]);
   Object.assign(S, { ws, queue, plans: plans.plans, outcome, events, chain: events.chain_intact });
+  S.names = { ...(S.names || {}), ...Object.fromEntries(queue.rows.map((r) => [r.facility_id, r.facility_name])),
+    ...Object.fromEntries((S.layers?.markers || []).map((m) => [m.facility_id, m.name])) };
   fillSelect($("queueSku"), ["", ...Object.keys(ws.skus)], (k) => k || "All SKUs");
   fillSelect($("planSku"), Object.keys(ws.skus), (k) => `${k} — ${ws.skus[k].name}`);
   fillSelect($("mapSku"), ["", ...Object.keys(ws.skus)], (k) => k || "All resources");
   $("sampleBanner").hidden = !ws.has_sample_data;
   S.lastEvents = events.total_events; S.updatedAt = new Date();
-  renderStatus(); renderQueue(); renderAllocation(); renderApproval(); renderOutcome(); renderAudit(); renderData();
-  $("c-queue").textContent = queue.rows.filter((r) => r.recommended_action === "VERIFY" || r.recommended_action === "TRANSFER").length;
-  $("c-alloc").textContent = S.plans.length;
-  $("c-approval").textContent = S.plans.filter((p) => p.status === "PROPOSED").length;
-  $("c-audit").textContent = events.total_events;
-  $("c-map").textContent = ws.facilities;
+  renderStatus(); renderQueue(); renderAllocation(); renderApproval(); renderOutcome(); renderAudit(); renderData(); renderBriefing(); renderSide();
+  setCount("c-queue", queue.rows.filter((r) => r.recommended_action === "VERIFY" || r.recommended_action === "TRANSFER").length);
+  setCount("c-alloc", S.plans.length, true);
+  setCount("c-approval", S.plans.filter((p) => p.status === "PROPOSED").length);
+  setCount("c-audit", events.total_events, true);
+  setCount("c-map", ws.facilities, true);
   if (S.view === "map") renderMap();
+  if (S.view === "briefing") renderBriefMap();
 }
+function setCount(id, n, neutral = false) { const el = $(id); el.textContent = n; el.classList.toggle("zero", neutral || !n); }
+function renderSide() {
+  const ws = S.ws, fac = ws.facility_districts || [];
+  const box = $("jurisdiction");
+  const states = ws.states || [];
+  if (box) {
+    box.replaceChildren(h("strong", {}, states.length ? states.join(" · ") : "No district loaded"),
+      h("span", { class: "mono" }, fac.length ? `Districts: ${fac.join(", ")}` : ws.facilities ? `${ws.facilities} facilities` : "Load one in Data intake"));
+  }
+  if ($("jurTitle")) $("jurTitle").textContent = states.length ? `${states.join(" · ")} State Central` : "Odisha State Central";
+  if ($("jurSub")) $("jurSub").textContent = fac.length ? `Division: ${fac.join(", ")}` : "Division: Khordha & Coastal";
+  setCount("s-verify", S.queue.rows.filter((r) => r.recommended_action === "VERIFY").length);
+  setCount("s-plans", S.plans.filter((p) => ["PROPOSED", "APPROVED", "REPLAN_REQUIRED"].includes(p.status)).length, true);
+  setCount("s-ship", S.outcome.shipments.filter((x) => ["IN_TRANSIT", "DELAYED"].includes(x.status)).length, true);
+}
+
+/* ---------- mission briefing ---------- */
+function kpi(label, hi, value, unit, badge, foot) {
+  return h("div", { class: "kpi" }, h("div", { class: "top" }, h("div", {}, h("div", { class: "label" }, label), h("div", { class: "hi", lang: "hi" }, hi)), badge),
+    h("div", { class: "value" }, value, unit ? h("small", {}, unit) : null), h("div", { class: "foot" }, ...foot));
+}
+function renderBriefing() {
+  const ws = S.ws, q = S.queue, o = S.outcome, rows = q.rows;
+  $("briefAsOf").textContent = `As of ${dt(q.as_of)} · ${ws.environment.replaceAll("_", " ")}`;
+  const verified = rows.filter((r) => r.verification_state === "VERIFIED").length;
+  const below = rows.filter((r) => r.is_recipient).length;
+  const pending = S.plans.filter((p) => p.status === "PROPOSED").length;
+  const sd = o.stockout_days_projected;
+  $("briefKpis").replaceChildren(
+    kpi("Facilities in registry", "पंजीकृत सुविधाएँ", fmt(ws.facilities, 0), `${(ws.states || []).length} state(s)`,
+      h("span", { class: "badge b-real" }, icon("public"), "REAL · OSM"), [h("span", {}, `${ws.reports} stock reports`), h("span", {}, `${ws.quarantined_rows} quarantined`)]),
+    kpi("Physically verified", "भौतिक सत्यापन दर", rows.length ? `${fmt(100 * verified / rows.length, 0)}%` : "—", `${verified} of ${rows.length}`,
+      h("span", { class: `badge ${verified ? "b-ok" : "b-warn"}` }, icon(verified ? "verified" : "pending"), verified ? "COUNTED" : "DEFICIT"),
+      [h("span", {}, "Human counts ≤ 7 days"), h("span", {}, `${ws.open_tasks} open tasks`)]),
+    kpi("Below alert runway", "स्टॉक-आउट चेतावनी", fmt(below, 0), "facility-SKUs",
+      h("span", { class: `badge ${below ? "b-bad" : "b-ok"}` }, icon(below ? "warning" : "check_circle"), below ? "ACTION" : "CLEAR"),
+      [h("span", {}, `Stockout-days ${fmt(sd.baseline_at_load)} → ${fmt(sd.current)}`), h("span", {}, "projection")]),
+    kpi("Transfer proposals", "पुनः आवंटन प्रस्ताव", fmt(pending, 0), "awaiting officer",
+      h("span", { class: `badge ${pending ? "b-warn" : "b-nc"}` }, icon("gavel"), pending ? "DECIDE" : "NONE"),
+      [h("span", {}, `${fmt(o.phantom_units_blocked)} phantom units blocked`), h("span", {}, `${o.shipments.length} shipments`)]));
+  const acts = rows.filter((r) => ["VERIFY", "TRANSFER", "ESCALATE"].includes(r.recommended_action)).slice(0, 4);
+  $("briefStage").replaceChildren(icon(acts.length ? "flag" : "check"), acts.length ? `${acts.length} ACTIONS` : "NO ACTION");
+  $("briefActions").replaceChildren(...(acts.length ? acts.map((r) => h("div", { class: "option-card" + (r.recommended_action === "VERIFY" ? " rec" : "") },
+    h("h3", {}, actBadge(r.recommended_action), h("span", {}, r.facility_name), h("span", { class: "fac-id" }, r.sku)),
+    h("div", { class: "muted" }, r.reason),
+    h("div", { style: "display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" }, prov(r.report_provenance),
+      h("span", { class: "badge b-nc" }, icon("timer"), `runway ${fmt(r.runway_days)} d`),
+      h("button", { class: "btn sm", onclick: () => show(r.recommended_action === "VERIFY" ? "queue" : "allocation") },
+        r.recommended_action === "VERIFY" ? "Open trust queue" : "Plan transfer")))) : [empty(ws.reports ? "Nothing needs a decision" : "No stock data yet",
+          ws.reports ? "All facilities are above the alert runway." : "Load facilities and a stock export (or the sample) in Data intake.", ws.reports ? "task_alt" : "upload_file")]));
+  const counted = rows.filter((r) => r.last_attested_at).length;
+  $("taxA").textContent = `${rows.filter((r) => r.verification_state !== "VERIFIED").length} unverified reports`;
+  $("taxB").textContent = `${verified} verified now · ${counted} ever counted`;
+  $("taxD").textContent = `${S.events.events.filter((e) => e.event_type === "agent_run").length} recent agent runs (ledgered)`;
+  $("briefHash").textContent = S.events.events[0] ? `LEDGER HEAD ${S.events.events[0].hash}` : "";
+  const top = rows.slice(0, 6);
+  $("briefQueue").replaceChildren(top.length ? h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {},
+    ...["Facility / node", "Item", "Provenance", "Reported now", "Posture", "Action"].map((c) => h("th", { scope: "col" }, c)))),
+    h("tbody", {}, top.map((r) => h("tr", {}, h("td", {}, h("div", { class: "fac-name" }, r.facility_name), h("div", { class: "fac-id" }, r.facility_id)),
+      h("td", {}, r.sku), h("td", {}, prov(r.report_provenance)), h("td", { class: "num" }, fmt(r.reported_now)),
+      h("td", {}, stateBadge(r.verification_state)), h("td", {}, actBadge(r.recommended_action)))))))
+    : empty("Queue is empty", "It fills as soon as a stock export is loaded.", "inbox"));
+}
+function renderBriefMap() {
+  const el = $("briefMap"); if (!S.ws?.facilities) { el.replaceChildren(empty("No facilities", "Load a district.", "map")); $("briefMapState").textContent = "EMPTY"; return; }
+  api("/api/map/layers").then(async (layers) => {
+    S.layers = S.layers || layers;
+    const pts = layers.markers;
+    $("briefMapState").replaceChildren(icon("public"), `${pts.length} REAL LOCATIONS`);
+    $("briefMapNote").replaceChildren(h("span", {}, `Geo-reference WGS 84 · OpenStreetMap facility points · routes: ${layers.maps.routes_provider}`));
+    if (S.config.maps_browser_key) {
+      try { await ensureGoogle(); } catch { return drawMiniLeaflet(el, pts); }
+      const g = google.maps; const m = new g.Map(el, { center: { lat: pts[0].lat, lng: pts[0].lon }, zoom: 8, disableDefaultUI: true, mapTypeId: "terrain" });
+      const b = new g.LatLngBounds();
+      for (const x of pts) { const mk = new g.Marker({ map: m, position: { lat: x.lat, lng: x.lon }, title: x.name,
+        icon: { path: g.SymbolPath.CIRCLE, scale: x.resources.length ? 6 : 4, fillColor: markerColor(x), fillOpacity: .95, strokeColor: "#0f172a", strokeWeight: 1 } });
+        b.extend(mk.getPosition()); }
+      m.fitBounds(b);
+    } else drawMiniLeaflet(el, pts);
+  }).catch((e) => el.replaceChildren(h("div", { class: "notice bad" }, e.message)));
+}
+function drawMiniLeaflet(el, pts) {
+  el.replaceChildren(); const m = L.map(el, { zoomControl: false, attributionControl: true });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(m);
+  pts.forEach((x) => L.circleMarker([x.lat, x.lon], { radius: 4, color: "#0f172a", weight: 1, fillColor: markerColor(x), fillOpacity: .9 }).addTo(m));
+  m.fitBounds(pts.map((x) => [x.lat, x.lon]));
+}
+
 function fillSelect(sel, values, label) {
   const cur = sel.value;
   sel.replaceChildren(...values.map((v) => h("option", { value: v }, label(v))));
@@ -171,17 +287,17 @@ function renderAllocation() {
     citeBtn(p.proposed_event_id)));
   body.append(h("div", { class: "grid2" },
     h("div", { class: "panel" }, h("h2", {}, "Needs (recipients below alert runway)"), p.needs.length ? table(["Facility", "Shortfall", "Runway", "Essentiality"],
-      p.needs.map((n) => [n.facility_id, fmt(n.shortfall), `${fmt(n.days_to_stockout)} d`, n.essentiality])) : h("p", { class: "muted" }, "No open need.")),
+      p.needs.map((n) => [facName(n.facility_id), fmt(n.shortfall), `${fmt(n.days_to_stockout)} d`, n.essentiality])) : h("p", { class: "muted" }, "No open need.")),
     h("div", { class: "panel" }, h("h2", {}, "Rejected donors — why"), p.rejected_donors.length ? table(["Donor", "Recipient", "Reason"],
-      p.rejected_donors.map((d) => [d.facility_id, d.recipient || "all", d.reason])) : h("p", { class: "muted" }, "None."))));
+      p.rejected_donors.map((d) => [facName(d.facility_id), d.recipient ? facName(d.recipient) : "all", statusBadge(d.reason)])) : h("p", { class: "muted" }, "None."))));
   body.append(h("div", { class: "panel" }, h("h2", {}, "Options and counterfactuals"), ...p.options.map((o) => h("div", { class: `option-card${o.option === p.recommended_option ? " rec" : ""}` },
     h("h3", {}, o.option.replaceAll("_", " "), o.option === p.recommended_option ? h("span", { class: "badge b-info" }, "RECOMMENDED") : null,
       !o.approvable ? h("span", { class: "badge b-nc" }, "COUNTERFACTUAL · NOT APPROVABLE") : null),
     h("div", { class: "muted" }, o.why),
     h("div", { class: "mono" }, `fulfils ${fmt(o.fulfilled_qty)} · shortfall ${fmt(o.shortfall_qty)} · qty-weighted travel ${fmt(o.qty_weighted_travel_hours)} h`),
-    o.lines.length ? h("div", { class: "mono muted" }, o.lines.map((l) => `${l.from_facility}→${l.to_facility} ${fmt(l.qty)} (${l.kind === "IMMEDIATE" ? "now" : "after count"})`).join(" · ")) : null))));
+    o.lines.length ? h("div", { class: "mono muted" }, o.lines.map((l) => `${facName(l.from_facility)} → ${facName(l.to_facility)}: ${fmt(l.qty)} (${l.kind === "IMMEDIATE" ? "now" : "after count"})`).join(" · ")) : null))));
   body.append(h("div", { class: "panel" }, h("h2", {}, "Lines"), p.lines.length ? table(["Line", "From", "To", "Qty", "Travel", "Kind", "Status", "Action"],
-    p.lines.map((l) => [h("span", { class: "mono" }, l.line_id), l.from_facility, l.to_facility, fmt(l.qty), `${fmt(l.travel_hours)} h`, l.kind.replaceAll("_", " "),
+    p.lines.map((l) => [h("span", { class: "mono" }, l.line_id), facName(l.from_facility), facName(l.to_facility), fmt(l.qty), `${fmt(l.travel_hours)} h`, l.kind.replaceAll("_", " "),
       statusBadge(l.status), lineActions(p, l)])) : h("p", { class: "muted" }, "This option has no transfer lines."),
     h("p", { class: "muted" }, "Planner travel times are straight-line × 1.35 estimates at 38 km/h; road routes on the map come from the route provider shown there.")));
   if (chain.length > 1) body.append(h("div", { class: "panel" }, h("h2", {}, "Plan history"),
@@ -209,6 +325,10 @@ function table(cols, rows) {
   return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, ...cols.map((c) => h("th", { scope: "col" }, c)))),
     h("tbody", {}, rows.map((r) => h("tr", {}, ...r.map((c) => h("td", {}, c)))))));
 }
+function facName(id) {
+  const n = S.names?.[id];
+  return n ? h("div", {}, h("div", { class: "fac-name" }, n), h("div", { class: "fac-id" }, id)) : h("span", { class: "fac-id" }, id);
+}
 function citeBtn(id) { return id ? h("button", { class: "cite", onclick: () => openEvent(id), title: "Open ledger event" }, id) : "—"; }
 
 /* ---------- approval ---------- */
@@ -229,7 +349,7 @@ function renderApproval() {
       h("div", { class: "muted", style: "margin-bottom:4px" }, "Lines of the recommended option (untick to reject a line):"),
       ...(p.options.find((o) => o.option === p.recommended_option)?.lines || []).map((l) => h("label", { style: "display:block" },
         h("input", { type: "checkbox", name: "line", value: l.line_id, checked: true }),
-        ` ${l.from_facility} → ${l.to_facility} · ${fmt(l.qty)} · ${l.kind === "IMMEDIATE" ? "dispatch now" : "held until a count confirms the donor"}`)),
+        ` ${facName(l.from_facility)} → ${facName(l.to_facility)} · ${fmt(l.qty)} · ${l.kind === "IMMEDIATE" ? "dispatch now" : "held until a count confirms the donor"}`)),
       h("label", { class: "field", style: "margin-top:8px" }, "Reason (recorded on the ledger)", h("textarea", { name: "reason", required: true, maxlength: 1000, style: "min-height:60px" })),
       h("div", { style: "display:flex;gap:8px;margin-top:8px" },
         h("button", { class: "btn primary", type: "submit", value: "APPROVE", disabled: !canDo("district_medical_officer") }, "Approve"),
@@ -248,7 +368,7 @@ function renderApproval() {
 }
 
 /* ---------- outcome ---------- */
-function metric(v, l, src) { return h("div", { class: "metric" }, h("div", { class: "v" }, v), h("div", { class: "l" }, l), h("div", { class: "src" }, src)); }
+function metric(v, l, src) { return h("div", { class: "kpi" }, h("div", { class: "label" }, l), h("div", { class: "value" }, v), h("div", { class: "foot" }, h("span", {}, src))); }
 function renderOutcome() {
   const o = S.outcome, body = $("outcomeBody"); body.replaceChildren();
   body.append(h("div", { class: "notice info" }, o.label));
@@ -258,7 +378,7 @@ function renderOutcome() {
     metric(fmt(o.phantom_units_blocked), "Phantom units blocked", "Units a trust-the-report plan would have moved from donors later counted short"),
     metric(o.verification_hit_rate === null ? "—" : `${fmt(o.verification_hit_rate * 100, 0)}%`, `Verification hit rate (${o.verification_tasks_completed} tasks)`, o.verification_hit_rate_definition)));
   body.append(h("div", { class: "panel" }, h("h2", {}, "Shipments"), o.shipments.length ? table(["Shipment", "Route", "Qty", "Status", "Received", "Damaged", "ETA", "Action"],
-    o.shipments.map((s) => [h("span", { class: "mono" }, s.shipment_id), `${s.from_facility} → ${s.to_facility}`, fmt(s.qty), statusBadge(s.status), fmt(s.received_qty), fmt(s.damaged_qty), dt(s.eta), shipmentActions(s)]))
+    o.shipments.map((s) => [h("span", { class: "mono" }, s.shipment_id), h("div", {}, facName(s.from_facility), h("div", { class: "muted" }, "→"), facName(s.to_facility)), fmt(s.qty), statusBadge(s.status), fmt(s.received_qty), fmt(s.damaged_qty), dt(s.eta), shipmentActions(s)]))
     : h("p", { class: "muted" }, "No shipments dispatched."), h("p", { class: "muted" }, "Status is entered by people. There is no GPS or live vehicle tracking.")));
   body.append(h("div", { class: "grid2" },
     h("div", { class: "panel" }, h("h2", {}, "Count findings"), o.findings.length ? table(["Facility", "SKU", "Finding", "Variance", "Ledger"],
@@ -344,11 +464,25 @@ async function readFile(input) {
 
 /* ---------- map ---------- */
 function markerColor(m) {
-  if (m.has_phantom_finding) return "#7a3fa0";
-  if (m.is_recipient) return "#a3231f";
-  if (m.is_verification_target) return "#d99a00";
-  if (m.resources.some((r) => r.verification_state === "VERIFIED")) return "#1d6b3a";
-  return m.resources.length ? "#0b4f8a" : "#9aa3ae";
+  if (m.has_phantom_finding) return "#7c3aed";
+  if (m.is_recipient) return "#dc2626";
+  if (m.is_verification_target) return "#d97706";
+  if (m.resources.some((r) => r.verification_state === "VERIFIED")) return "#059669";
+  return m.resources.length ? "#2563eb" : "#94a3b8";
+}
+async function ensureGoogle() {
+  if (window.google?.maps?.Map) return;
+  window.gm_authFailure = () => { S.googleFailed = true; toast("Google Maps rejected the browser key for this website (HTTP-referrer restriction). Showing OpenStreetMap.", true);
+    if (S.layers) drawLeaflet(S.layers); };
+  await loadScript(`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(S.config.maps_browser_key)}&v=weekly&loading=async&callback=__gmReady`, "gmaps");
+  const t0 = Date.now(); while (!window.google?.maps?.Map) { if (Date.now() - t0 > 10000) throw new Error("Google Maps did not initialise"); await new Promise((r) => setTimeout(r, 100)); }
+}
+window.__gmReady = () => {};
+function setMapMode(mode) {
+  S.mapMode = mode;
+  [["mode2d", "2d"], ["modeSat", "sat"], ["mode3d", "3d"]].forEach(([id, m]) => $(id).setAttribute("aria-pressed", String(m === mode)));
+  if (mode !== "3d" && S.gmap && !S.cesium) { S.gmap.setMapTypeId(mode === "sat" ? "hybrid" : "roadmap"); return; }
+  renderMap();
 }
 async function renderMap() {
   const q = new URLSearchParams(); if ($("mapSku").value) q.set("sku", $("mapSku").value);
@@ -360,10 +494,12 @@ async function renderMap() {
   $("facilityList").replaceChildren(...layers.markers.map((m) => h("option", { value: `${m.name} (${m.facility_id})` })));
   const t3 = S.status.maps.tiles_3d;
   $("mode3d").disabled = t3.state !== "AVAILABLE"; $("mode3d").title = t3.state === "AVAILABLE" ? "Google Photorealistic 3D Tiles" : t3.reason;
+  $("modeSat").disabled = !S.config.maps_browser_key || S.googleFailed;
   const notes = [];
-  if (!layers.markers.length) notes.push(h("div", { class: "notice warn" }, "No facilities in the registry. Load OpenStreetMap facilities or upload a registry in Data intake."));
-  if (t3.state !== "AVAILABLE") notes.push(h("div", { class: "notice info" }, `3D unavailable: ${t3.reason} 2D is the operational view.`));
-  if (layers.routes.some((r) => r.provenance.startsWith("SYNTHETIC"))) notes.push(h("div", { class: "notice warn" }, "Some routes are straight-line estimates (route provider not configured or failed); they are labelled on each route."));
+  if (!layers.markers.length) notes.push(h("div", { class: "notice warn" }, icon("location_off"), h("div", {}, "No facilities in the registry. Load OpenStreetMap facilities or upload a registry in Data intake.")));
+  if (t3.state !== "AVAILABLE") notes.push(h("div", { class: "notice info" }, icon("view_in_ar"), h("div", {}, h("strong", {}, "3D photorealistic view is off. "),
+    `${t3.reason} Enable “Map Tiles API” in Google Cloud Console → APIs & Services for the key's project; 3D switches on automatically.`)));
+  if (layers.routes.some((r) => r.provenance.startsWith("SYNTHETIC"))) notes.push(h("div", { class: "notice warn" }, icon("route"), h("div", {}, "Some routes are straight-line estimates (route provider not configured or failed); they are labelled on each route.")));
   $("mapNotice").replaceChildren(...notes);
   try {
     if (S.mapMode === "3d" && t3.state === "AVAILABLE") await draw3d(layers);
@@ -401,13 +537,14 @@ function selectFacility(m) {
     statusBadge(r.shipment_status || r.line_status), h("span", {}, prov(r.provenance), r.duration_min ? ` ${fmt(r.duration_min, 0)} min, ${fmt(r.distance_km)} km` : "")])));
 }
 function drawLeaflet(layers) {
+  S.gmap = null; S.cesium = null;
   const c = resetCanvas(); const map = L.map(c); S.map = map;
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap contributors" }).addTo(map);
   const pts = [];
   for (const m of layers.markers) { pts.push([m.lat, m.lon]);
     L.circleMarker([m.lat, m.lon], { radius: m.resources.length ? 8 : 5, color: "#222", weight: 1, fillColor: markerColor(m), fillOpacity: .9 })
       .addTo(map).bindTooltip(`${m.name} · ${m.coordinates_provenance}`).on("click", () => selectFacility(m)); }
-  for (const r of layers.routes) L.polyline(r.path, { color: r.line_status === "INVALIDATED" ? "#a3231f" : "#0b4f8a", weight: 3,
+  for (const r of layers.routes) L.polyline(r.path, { color: r.line_status === "INVALIDATED" ? "#dc2626" : "#0d6e6e", weight: 3,
     dashArray: ["DISPATCHED", "DELAYED", "RECEIVED"].includes(r.line_status) ? null : "6 6" }).addTo(map).bindTooltip(`${r.from}→${r.to} ${r.qty} · ${r.line_status} · ${r.provenance}`);
   if (pts.length) map.fitBounds(pts, { padding: [30, 30] }); else map.setView([19.07, 82.03], 9);
 }
@@ -416,23 +553,22 @@ function loadScript(src, id) {
     const s = h("script", { src, id, async: true }); s.onload = resolve; s.onerror = () => reject(new Error(`could not load ${id}`)); document.head.append(s); });
 }
 async function drawGoogle(layers) {
-  if (!window.google?.maps) {
-    await loadScript(`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(S.config.maps_browser_key)}&v=weekly`, "gmaps");
-    const t0 = Date.now(); while (!window.google?.maps?.Map) { if (Date.now() - t0 > 8000) throw new Error("Google Maps did not initialise"); await new Promise((r) => setTimeout(r, 100)); }
-  }
-  window.gm_authFailure = () => { toast("Google Maps rejected the key (check referrer/API restrictions). Using OpenStreetMap.", true); drawLeaflet(S.layers); };
+  if (S.googleFailed) return drawLeaflet(layers);
+  await ensureGoogle();
+  S.cesium = null;
   const c = resetCanvas(); const g = google.maps;
-  const map = new g.Map(c, { center: { lat: 19.07, lng: 82.03 }, zoom: 9, mapTypeId: "roadmap", streetViewControl: false, fullscreenControl: true });
+  const map = new g.Map(c, { center: { lat: 19.07, lng: 82.03 }, zoom: 9, mapTypeId: S.mapMode === "sat" ? "hybrid" : "roadmap",
+    streetViewControl: false, fullscreenControl: true, mapTypeControl: false, tilt: 45 });
   S.map = { remove() {} };
   const bounds = new g.LatLngBounds();
   for (const m of layers.markers) {
     const mk = new g.Marker({ map, position: { lat: m.lat, lng: m.lon }, title: `${m.name} · ${m.coordinates_provenance}`,
-      icon: { path: g.SymbolPath.CIRCLE, scale: m.resources.length ? 8 : 5, fillColor: markerColor(m), fillOpacity: .95, strokeColor: "#222", strokeWeight: 1 } });
+      icon: { path: g.SymbolPath.CIRCLE, scale: m.resources.length ? 8 : 5, fillColor: markerColor(m), fillOpacity: .95, strokeColor: "#0f172a", strokeWeight: 1.2 } });
     mk.addListener("click", () => selectFacility(m)); bounds.extend(mk.getPosition());
   }
   for (const r of layers.routes) {
     const solid = ["DISPATCHED", "DELAYED", "RECEIVED"].includes(r.line_status);
-    new g.Polyline({ map, path: r.path.map(([lat, lng]) => ({ lat, lng })), strokeColor: r.line_status === "INVALIDATED" ? "#a3231f" : "#0b4f8a",
+    new g.Polyline({ map, path: r.path.map(([lat, lng]) => ({ lat, lng })), strokeColor: r.line_status === "INVALIDATED" ? "#dc2626" : "#0d6e6e",
       strokeOpacity: solid ? .9 : 0, strokeWeight: 3, icons: solid ? [] : [{ icon: { path: "M 0,-1 0,1", strokeOpacity: .9, scale: 3 }, offset: "0", repeat: "14px" }] });
   }
   if (layers.markers.length) map.fitBounds(bounds);
@@ -443,6 +579,7 @@ async function draw3d(layers) {
   if (!document.getElementById("cesium-css")) document.head.append(h("link", { id: "cesium-css", rel: "stylesheet", href: `${window.CESIUM_BASE_URL}Widgets/widgets.min.css` }));
   await loadScript(`${window.CESIUM_BASE_URL}Cesium.min.js`, "cesium");
   const c = resetCanvas(); const C = window.Cesium;
+  S.gmap = null;
   const viewer = new C.Viewer(c, { globe: false, baseLayer: false, baseLayerPicker: false, geocoder: false, timeline: false, animation: false,
     homeButton: true, sceneModePicker: false, navigationHelpButton: false, infoBox: false, selectionIndicator: true });
   S.map = { destroy: () => viewer.destroy() };
@@ -466,13 +603,13 @@ function flyToSearch() {
   const m = S.layers.markers.find((x) => `${x.name} (${x.facility_id})`.toLowerCase() === v || x.facility_id.toLowerCase() === v || x.name.toLowerCase().includes(v));
   if (!m) return toast("No facility matches that search.", true);
   selectFacility(m);
-  if (S.gmap && S.mapMode === "2d" && window.google?.maps) { S.gmap.panTo({ lat: m.lat, lng: m.lon }); S.gmap.setZoom(13); }
+  if (S.gmap && !S.cesium && window.google?.maps) { S.gmap.panTo({ lat: m.lat, lng: m.lon }); S.gmap.setZoom(13); }
   else if (S.map?.setView) S.map.setView([m.lat, m.lon], 13);
   else if (S.cesium) S.cesium.camera.flyTo({ destination: window.Cesium.Cartesian3.fromDegrees(m.lon, m.lat - 0.03, 2500), orientation: { pitch: window.Cesium.Math.toRadians(-35) } });
 }
 
 /* ---------- agents ---------- */
-function openDrawer() { $("agentDrawer").hidden = false; }
+function openDrawer() { $("agentDrawer").hidden = false; setTimeout(() => $("agentQuery").focus(), 50); }
 async function askAgent(name, request) {
   openDrawer();
   const pending = h("div", { class: "agent-answer" }, h("span", { class: "spinner" }), ` ${name} is reading the ledger…`);
@@ -533,8 +670,21 @@ function wire() {
   $("planSku").addEventListener("change", renderAllocation);
   ["mapSku", "mapBlock", "mapTier"].forEach((id) => $(id).addEventListener("change", renderMap));
   $("mapSearch").addEventListener("change", flyToSearch);
-  $("mode2d").addEventListener("click", () => { S.mapMode = "2d"; $("mode2d").setAttribute("aria-pressed", "true"); $("mode3d").setAttribute("aria-pressed", "false"); renderMap(); });
-  $("mode3d").addEventListener("click", () => { S.mapMode = "3d"; $("mode3d").setAttribute("aria-pressed", "true"); $("mode2d").setAttribute("aria-pressed", "false"); renderMap(); });
+  $("mode2d").addEventListener("click", () => setMapMode("2d"));
+  $("modeSat").addEventListener("click", () => setMapMode("sat"));
+  $("mode3d").addEventListener("click", () => setMapMode("3d"));
+  document.querySelectorAll(".side-nav button, [data-go]").forEach((b) => b.addEventListener("click", () => show(b.dataset.view || b.dataset.go)));
+  const setLang = (lang) => { $("agentLang").value = lang; $("uiEn").setAttribute("aria-pressed", String(lang === "en")); $("uiHi").setAttribute("aria-pressed", String(lang === "hi"));
+    document.documentElement.lang = lang; store.set("tathyon.lang", lang); };
+  $("uiEn").addEventListener("click", () => setLang("en")); $("uiHi").addEventListener("click", () => setLang("hi"));
+  if (store.get("tathyon.lang") === "hi") setLang("hi");
+  const SUGGEST = { ops_copilot: ["Which facilities should be counted first and why?", "Why was a donor rejected in the latest plan?"],
+    resilience_analyst: ["Which facilities are at risk and what changed since the previous plan?", "What if demand rises 30%?"],
+    replan_watcher: ["Check whether any approved plan is now infeasible and draft a replan."],
+    evidence_agent: ["What happened in this case and why did the original plan fail?"] };
+  const renderSuggest = () => $("agentSuggest").replaceChildren(...(SUGGEST[$("agentName").value] || []).map((t) =>
+    h("button", { type: "button", onclick: () => { $("agentQuery").value = t; } }, t)));
+  $("agentName").addEventListener("change", renderSuggest); renderSuggest();
   $("runWatcher").addEventListener("click", () => askAgent("replan_watcher", "Check whether any approved plan is now infeasible and draft a replan if needed."));
   fillSelect($("auditType"), EVENT_TYPES, (t) => t || "All event types");
   $("auditType").addEventListener("change", () => act(async () => {}));
@@ -568,9 +718,16 @@ function wire() {
       out.replaceChildren(renderAnswer(r), r.candidate ? h("pre", { class: "mono" }, JSON.stringify(r.candidate, null, 2)) : ""); refreshAll();
     } catch (x) { out.replaceChildren(h("div", { class: "notice bad" }, x.message)); } });
   $("openAgents").addEventListener("click", openDrawer);
+  if ($("quickFindBtn")) $("quickFindBtn").addEventListener("click", openDrawer);
   $("closeAgents").addEventListener("click", () => { $("agentDrawer").hidden = true; $("openAgents").focus(); });
   $("agentForm").addEventListener("submit", (e) => { e.preventDefault(); const q = $("agentQuery").value.trim(); if (q) askAgent($("agentName").value, q); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("agentDrawer").hidden) $("agentDrawer").hidden = true; });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("agentDrawer").hidden) $("agentDrawer").hidden = true;
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      openDrawer();
+    }
+  });
 }
 
 async function boot() {
@@ -589,7 +746,7 @@ async function boot() {
     const opts = () => dist.map((d) => h("option", { value: d.key }, `${d.district}, ${d.state} — ${d.facilities} facilities (${d.fetch_status})`));
     $("osmDistrict").replaceChildren(...opts()); $("sampleDistrict").replaceChildren(...opts());
     await refreshAll();
-    if (!S.ws.facilities) show("data"); else show(params.get("view") || "queue");
+    if (!S.ws.facilities) show("data"); else show(params.get("view") || "briefing");
   } catch (e) {
     document.querySelector("main").prepend(h("div", { class: "notice bad" }, `Could not start: ${e.message}`));
   }

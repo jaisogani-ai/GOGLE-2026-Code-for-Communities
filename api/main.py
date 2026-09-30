@@ -234,6 +234,7 @@ def get_workspace(p: Principal = Depends(current_principal)) -> dict:
             "facility_provenance": sorted({f.get("provenance") for f in ws.facilities.values()}),
             "osm_registry_available": any(os.path.isfile(osm_path(k)) for k in OSM_DISTRICTS),
             "states": sorted({f.get("state") for f in ws.facilities.values() if f.get("state")}),
+            "facility_districts": sorted({f.get("district") for f in ws.facilities.values() if f.get("district")}),
             "quarantine": ws.quarantine[-50:]}
 
 

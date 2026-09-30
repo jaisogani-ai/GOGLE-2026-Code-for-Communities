@@ -53,7 +53,7 @@ class OpsCopilot(BoundedAgent):
 
         def queue(a: QueueArgs) -> dict:
             q = ws.trust_queue(a.sku, a.verifier_hours)
-            keep = ("facility_id", "sku", "verification_state", "runway_days", "units_at_stake",
+            keep = ("facility_id", "facility_name", "sku", "verification_state", "runway_days", "units_at_stake",
                     "recommended_action", "reason", "signals", "report_event_id", "last_attestation_event_id",
                     "report_provenance")
             return {"as_of": q["as_of"], "environment": q["environment"],

@@ -3,46 +3,157 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TATHYON Operations</title>
-  <meta name="description" content="Healthcare supply resilience: which records to verify, which shortages to serve, and what happened afterwards.">
+  <meta name="color-scheme" content="light">
+  <title>TATHYON · Health-Supply Operations Console</title>
+  <meta name="description" content="Verify-before-trust health-supply decisions for India's public health network.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/static/app.css?v=3.2.0">
 </head>
 <body>
-<header class="top">
-  <div class="brand">TATHYON<small>Healthcare supply resilience · district operations</small></div>
-  <div class="status-strip" id="statusStrip" aria-live="polite"></div>
-  <div class="who">
-    <label for="identity" class="muted" style="font-size:12px">Signed in as</label>
-    <select id="identity" aria-describedby="identityNote"></select>
-    <span id="identityNote" class="badge b-nc" title="Signed demo session with a server-side role. No identity provider is connected.">DEMO IDENTITY</span>
-    <button class="btn sm" id="openAgents" aria-controls="agentDrawer">Ask agents</button>
+<div class="env-bar" role="note">
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="pulse" aria-hidden="true"></span>
+    <span>PILOT / STAGING ENVIRONMENT — Operational Real-Data Feeds Not Connected</span>
   </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span class="env-pill" id="envPill"><span class="ms" style="font-size:13px;vertical-align:-2px">warning</span>NON-OPERATIONAL AUDIT MODE</span>
+    <span class="env-build" id="envBuild">BUILD-2026.02-STG.IND</span>
+  </div>
+</div>
+<header class="app">
+  <div class="app-row">
+    <div class="brand">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <b style="color:var(--teal);font-size:22px;letter-spacing:-.02em">TATHYON</b>
+        <small style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase">v2.4 Sovereign Core</small>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <span style="font-size:12px;font-weight:500;color:var(--muted)">Health-Supply Operations Console</span>
+        <span class="muted">•</span>
+        <span class="hi" lang="hi" style="font-size:11px">स्वास्थ्य आपूर्ति संचालन</span>
+      </div>
+    </div>
+    <div class="chips" id="statusStrip" aria-live="polite"></div>
+    <div class="who">
+      <div class="quick-find" id="quickFindBtn" title="Press ⌘K to open Operations Copilot">
+        <span class="ms" style="font-size:14px">keyboard_command_key</span><span>K</span><span class="qf-sub">Quick Find</span>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Agent answer language">
+        <button type="button" id="uiEn" aria-pressed="true">EN</button><button type="button" id="uiHi" aria-pressed="false" lang="hi">हिन्दी</button>
+      </div>
+      <div class="desk-info">
+        <label for="identity" class="desk-name">DISTRICT NODAL DESK</label>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="desk-id mono" id="deskId">OD-KHD-04</span>
+          <select id="identity" aria-describedby="identityNote" style="font-size:11px;min-height:26px;padding:1px 6px;border-radius:4px" title="Active role identity"></select>
+        </div>
+      </div>
+      <div class="avatar" title="Signed-in Operator"><span class="ms">person</span></div>
+      <span id="identityNote" class="badge b-nc" style="display:none"><span class="ms">badge</span>Demo identity</span>
+      <button class="btn primary" id="openAgents" aria-controls="agentDrawer"><span class="ms">smart_toy</span>Ask agents</button>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Operations views">
+    <button role="tab" data-view="briefing" aria-selected="true"><span class="ms">assignment_late</span>Mission Briefing <span class="hi" lang="hi">(मिशन सारांश)</span></button>
+    <button role="tab" data-view="queue" aria-selected="false"><span class="ms">verified</span>Trust Queue <span class="hi" lang="hi">(सत्यापन कतार)</span><span class="count" id="c-queue">–</span></button>
+    <button role="tab" data-view="map" aria-selected="false"><span class="ms">map</span>Map <span class="hi" lang="hi">(मानचित्र)</span><span class="count zero" id="c-map">–</span></button>
+    <button role="tab" data-view="allocation" aria-selected="false"><span class="ms">swap_horiz</span>Allocation <span class="hi" lang="hi">(आवंटन)</span><span class="count zero" id="c-alloc">–</span></button>
+    <button role="tab" data-view="approval" aria-selected="false"><span class="ms">gavel</span>Approval <span class="hi" lang="hi">(अनुमोदन)</span><span class="count" id="c-approval">–</span></button>
+    <button role="tab" data-view="outcome" aria-selected="false"><span class="ms">monitoring</span>Outcome <span class="hi" lang="hi">(परिणाम)</span></button>
+    <button role="tab" data-view="audit" aria-selected="false"><span class="ms">history_edu</span>Sovereign Ledger <span class="hi" lang="hi">(ऑडिट)</span><span class="count zero" id="c-audit">–</span></button>
+    <button role="tab" data-view="data" aria-selected="false"><span class="ms">upload_file</span>Data Intake <span class="hi" lang="hi">(डेटा)</span></button>
+  </nav>
 </header>
-<nav class="tabs" role="tablist" aria-label="Operations views">
-  <button role="tab" data-view="queue" aria-selected="true">Trust queue<span class="count" id="c-queue">–</span></button>
-  <button role="tab" data-view="map" aria-selected="false">Map<span class="count" id="c-map">–</span></button>
-  <button role="tab" data-view="allocation" aria-selected="false">Allocation<span class="count" id="c-alloc">–</span></button>
-  <button role="tab" data-view="approval" aria-selected="false">Approval<span class="count" id="c-approval">–</span></button>
-  <button role="tab" data-view="outcome" aria-selected="false">Outcome</button>
-  <button role="tab" data-view="audit" aria-selected="false">Audit<span class="count" id="c-audit">–</span></button>
-  <button role="tab" data-view="data" aria-selected="false">Data intake</button>
-</nav>
+
+<div class="shell">
+  <aside class="side" aria-label="Jurisdiction and navigation">
+    <div class="jur-box">
+      <span class="jur-label">Sovereign Jurisdiction</span>
+      <p class="jur-title" id="jurTitle">Odisha State Central</p>
+      <p class="jur-sub mono" id="jurSub">Division: Khordha &amp; Coastal</p>
+      <div id="jurisdiction" style="display:none"></div>
+    </div>
+    <nav class="side-nav" aria-label="Quick actions">
+      <button data-view="briefing" class="active"><span class="ms">assignment_late</span>Active Incidents</button>
+      <button data-view="queue"><span class="ms">verified</span>Verification Hub<span class="count" id="s-verify">–</span></button>
+      <button data-view="allocation"><span class="ms">swap_horiz</span>Cold-Chain Rebalance<span class="count zero" id="s-plans">–</span></button>
+      <button data-view="audit"><span class="ms">history_edu</span>Sovereign Ledger</button>
+    </nav>
+    <div class="pipe-box" aria-live="polite">
+      <div class="pipe-row">
+        <span class="pipe-label">DATA PIPELINE</span>
+        <span class="dot" id="pipeDot"></span>
+      </div>
+      <p class="pipe-title" id="pipeTitle">Offline Staging Sync</p>
+      <p class="pipe-hb mono" id="pipeHb">Last Heartbeat: 14:02:18 IST</p>
+      <div id="pipeText" style="display:none"></div>
+    </div>
+  </aside>
+
 <main>
-  <div id="sampleBanner" class="notice bad" hidden role="status"><strong>SAMPLE DATA LOADED.</strong> Facility locations are real (OpenStreetMap). Stock, counts, bed and staff figures marked SAMPLE are demonstration values and describe no real facility.</div>
-  <section class="view" id="view-queue" role="tabpanel">
-    <div class="view-head"><h1>Trust queue</h1><span class="q">Which records must a person count before anyone relies on them?</span>
+  <div id="sampleBanner" class="notice bad" hidden role="status"><span class="ms">warning</span><div><strong>SAMPLE DATA LOADED.</strong> Facility locations are real (OpenStreetMap). Stock, counts, bed and staff figures marked SAMPLE are demonstration values and describe no real facility.</div></div>
+
+  <section class="view" id="view-briefing" role="tabpanel">
+    <div class="view-head">
+      <div class="eyebrow">
+        <span class="tag">DIRECTORATE REVIEW LEVEL 4</span>
+        <span class="muted">•</span>
+        <span class="muted font-semibold" style="font-size:10px;text-transform:uppercase;letter-spacing:.04em">STATE SECRETARIAT OD-HQ</span>
+        <span class="spacer"></span>
+        <span class="muted" id="briefAsOf"></span>
+      </div>
+      <h1>Executive operations briefing — District &amp; State Review <span class="hi" lang="hi">(मिशन निदेशक समीक्षा)</span></h1>
       <div class="toolbar">
-        <label class="field" style="grid-auto-flow:column;align-items:center">SKU <select id="queueSku"></select></label>
-        <label class="field" style="grid-auto-flow:column;align-items:center">Verifier hours <input id="queueHours" type="number" min="1" max="80" value="6" style="width:70px"></label>
-        <button class="btn" id="queueRefresh">Refresh</button>
+        <button class="btn" data-go="data"><span class="ms">upload_file</span>Data intake</button>
+        <button class="btn primary" data-go="queue"><span class="ms">verified_user</span>Open trust queue workspace</button>
+      </div>
+      <span class="q">Mandated sovereign briefing deck for State Mission Directors, Nodal Inventory Chiefs, and Institutional Logistics Custodians.</span>
+    </div>
+    <div class="callout" style="margin-bottom:16px">
+      <span class="ms">lock_clock</span>
+      <div>
+        <strong>STRICT DATA INTEGRITY PROTOCOL ACTIVE</strong>
+        <p style="margin:4px 0 0;font-size:12px;line-height:18px">All operational integrations are currently fixture-backed or frozen in audit epoch. No live operational telemetry feed (NIC/CoWIN/e-Aushadhi) is authorized for automated dispatch. Verified real-time coverage stands at <strong class="mono">0% Live (Audit Freeze)</strong>. Synthetic rates, smoothed predictions, and extrapolated availability counters have been suppressed in accordance with directive <span class="mono">SEC-MED-2026/IND-AUDIT</span>.</p>
+      </div>
+    </div>
+    <div class="grid4" id="briefKpis" style="margin-bottom:16px"></div>
+    <div class="split">
+      <div class="card"><h2><span class="ms" style="color:var(--bad-fill)">emergency</span>Action & verification priority <span class="hi" lang="hi">(प्राथमिकता कार्य)</span><span class="spacer"></span><span class="badge b-warn" id="briefStage">—</span></h2>
+        <div id="briefActions"></div></div>
+      <div class="card"><h2><span class="ms">map</span>Regional operational basemap<span class="spacer"></span><span class="badge b-nc" id="briefMapState">—</span></h2>
+        <div id="briefMap" style="height:300px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--canvas-2)"></div>
+        <div class="legend" id="briefMapNote"></div></div>
+    </div>
+    <div class="card"><h2>Provenance & verification taxonomy <span class="hi" lang="hi">(डेटा वर्गीकरण)</span><span class="spacer"></span><span class="badge b-info"><span class="ms">smart_toy</span>AI suggestion — human decides</span></h2>
+      <div class="grid4">
+        <div class="tax"><div class="type"><span>TYPE A</span><span class="badge b-user">USER-SUPPLIED</span></div><h4>Reported state</h4><span class="hi" lang="hi">स्व-रिपोर्टेड डेटा</span>
+          <p>Stock balances from DVDMS / e-Aushadhi-shaped exports. Unverified claims until counted; never transferable on their own.</p><div class="conf" id="taxA">—</div></div>
+        <div class="tax gold"><div class="type"><span>TYPE B</span><span class="badge b-verified"><span class="ms">verified</span>VERIFIED COUNT</span></div><h4>Physically verified</h4><span class="hi" lang="hi">भौतिक सत्यापित स्टॉक</span>
+          <p>Counted on site by a field verifier who is not the custodian. The only stock the optimizer may move.</p><div class="conf" id="taxB">—</div></div>
+        <div class="tax"><div class="type"><span>TYPE C</span><span class="badge b-nc">DETERMINISTIC</span></div><h4>Deterministic rule</h4><span class="hi" lang="hi">नियम आधारित गणना</span>
+          <p>Safety floors, runway, CP-SAT allocation and the exact knapsack over verifier hours. Same input, same answer.</p><div class="conf">OR-Tools CP-SAT · single worker</div></div>
+        <div class="tax"><div class="type"><span>TYPE D</span><span class="badge b-info">ADVISORY</span></div><h4>AI suggestion</h4><span class="hi" lang="hi">AI सुझाव — मानव निर्णय</span>
+          <p>Gemini agents read the ledger through allowlisted tools and must cite event ids. They cannot approve, dispatch or count.</p><div class="conf" id="taxD">—</div></div>
       </div></div>
+    <div class="card"><h2>Pending exception queue <span class="hi" lang="hi">(अपेक्षित विसंगति कतार)</span><span class="spacer"></span><span class="mono muted" id="briefHash"></span></h2>
+      <div id="briefQueue"></div></div>
+  </section>
+
+  <section class="view" id="view-queue" role="tabpanel" hidden>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Verification hub</span></div>
+      <h1>Trust queue <span class="hi" lang="hi">(सत्यापन कतार)</span></h1>
+      <div class="toolbar">
+        <label class="inline">SKU <select id="queueSku"></select></label>
+        <label class="inline">Verifier hours <input id="queueHours" type="number" min="1" max="80" value="6" style="width:72px"></label>
+        <button class="btn" id="queueRefresh"><span class="ms">refresh</span>Refresh</button></div>
+      <span class="q">Which records must a person count before anyone relies on them?</span></div>
     <div id="queueBody"></div>
     <div class="panel" id="attestPanel" hidden>
-      <h2>Record a physical count</h2>
-      <p class="muted" style="margin-top:0">Only a field verifier who is not staff of the facility can record a count. The count is compared with the report and ledgered.</p>
+      <h2><span class="ms">inventory</span>Record a physical count <span class="hi" lang="hi">(भौतिक गणना दर्ज करें)</span></h2>
+      <p class="muted" style="margin-top:0">Only a field verifier who is not staff of the facility can record a count. It is compared with the report and ledgered.</p>
       <form id="attestForm" class="grid3">
         <label class="field">Facility <input name="facility_id" required readonly></label>
         <label class="field">SKU <input name="sku" required readonly></label>
@@ -50,122 +161,139 @@
         <label class="field">Present <input name="present_qty" type="number" min="0" step="any" required></label>
         <label class="field">Usable <input name="usable_qty" type="number" min="0" step="any" required></label>
         <label class="field">Expired / damaged <input name="expired_qty" type="number" min="0" step="any" value="0"></label>
-        <div><button class="btn primary" type="submit">Submit count</button> <button class="btn" type="button" id="attestCancel">Cancel</button></div>
+        <div style="display:flex;gap:8px"><button class="btn primary" type="submit"><span class="ms">task_alt</span>Submit count</button><button class="btn" type="button" id="attestCancel">Cancel</button></div>
       </form>
     </div>
   </section>
 
   <section class="view" id="view-map" role="tabpanel" hidden>
-    <div class="view-head"><h1>Map</h1><span class="q">Where are the shortages, the unverified surpluses and the moving stock?</span>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Geospatial</span></div>
+      <h1>Operational map <span class="hi" lang="hi">(मानचित्र)</span></h1>
       <div class="toolbar">
-        <label class="field" style="grid-auto-flow:column;align-items:center">Search <input id="mapSearch" list="facilityList" placeholder="facility name or id" style="width:200px"></label>
+        <input id="mapSearch" list="facilityList" placeholder="Search facility name or id" style="width:220px" aria-label="Search facility">
         <datalist id="facilityList"></datalist>
         <select id="mapBlock" aria-label="District filter"></select>
         <select id="mapTier" aria-label="Facility type filter"></select>
         <select id="mapSku" aria-label="Resource filter"></select>
-        <div role="group" aria-label="Map mode"><button class="btn sm" id="mode2d" aria-pressed="true">2D</button><button class="btn sm" id="mode3d" aria-pressed="false">3D</button></div>
-      </div></div>
+        <div class="seg" role="group" aria-label="Map mode">
+          <button id="mode2d" aria-pressed="true"><span class="ms">map</span>Map</button>
+          <button id="modeSat" aria-pressed="false"><span class="ms">satellite_alt</span>Satellite</button>
+          <button id="mode3d" aria-pressed="false"><span class="ms">view_in_ar</span>3D</button>
+        </div></div>
+      <span class="q">Where are the shortages, the unverified surpluses and the moving stock? Every marker and route comes from the backend.</span></div>
     <div id="mapNotice"></div>
     <div class="map-shell">
       <div><div id="mapCanvas" role="application" aria-label="Operational map"></div>
         <div class="legend">
-          <span><span class="dot" style="background:#a3231f"></span>Below alert runway</span>
-          <span><span class="dot" style="background:#d99a00"></span>Verification target</span>
-          <span><span class="dot" style="background:#1d6b3a"></span>Verified count</span>
-          <span><span class="dot" style="background:#7a3fa0"></span>Phantom stock found</span>
-          <span><span class="dot" style="background:#9aa3ae"></span>No stock data</span>
-          <span>── dispatched · - - contingent / proposed</span></div></div>
-      <aside class="panel map-drawer" id="mapDrawer" aria-live="polite"><div class="empty"><strong>Select a facility</strong>Markers come from the backend registry; each shows its source.</div></aside>
+          <span><span class="dot" style="background:#dc2626"></span>Below alert runway</span>
+          <span><span class="dot" style="background:#d97706"></span>Verification target</span>
+          <span><span class="dot" style="background:#059669"></span>Verified count</span>
+          <span><span class="dot" style="background:#7c3aed"></span>Phantom stock found</span>
+          <span><span class="dot" style="background:#2563eb"></span>Reported stock</span>
+          <span><span class="dot" style="background:#94a3b8"></span>No stock data</span>
+          <span>━ dispatched · ┅ contingent / proposed · red = invalidated</span></div></div>
+      <aside class="panel map-drawer" id="mapDrawer" aria-live="polite"><div class="empty"><span class="ms">location_on</span><strong>Select a facility</strong>Markers come from the backend registry; each shows its source.</div></aside>
     </div>
   </section>
 
   <section class="view" id="view-allocation" role="tabpanel" hidden>
-    <div class="view-head"><h1>Allocation</h1><span class="q">Which shortages do we serve first, from which verified donors?</span>
-      <div class="toolbar"><select id="planSku" aria-label="SKU to plan"></select><button class="btn primary" id="proposePlan">Generate options</button></div></div>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Cold-chain rebalance</span></div>
+      <h1>Allocation <span class="hi" lang="hi">(आवंटन)</span></h1>
+      <div class="toolbar"><select id="planSku" aria-label="SKU to plan"></select><button class="btn primary" id="proposePlan"><span class="ms">calculate</span>Generate options</button></div>
+      <span class="q">Which shortages do we serve first, from which verified donors? Solved with OR-Tools CP-SAT.</span></div>
     <div id="allocBody"></div>
   </section>
 
   <section class="view" id="view-approval" role="tabpanel" hidden>
-    <div class="view-head"><h1>Approval</h1><span class="q">A district medical officer decides. Every decision needs a reason and is ledgered.</span></div>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Human authority</span></div>
+      <h1>Approval <span class="hi" lang="hi">(अनुमोदन)</span></h1>
+      <span class="q">A district medical officer decides. Every decision needs a reason and is ledgered.</span></div>
     <div id="approvalBody"></div>
   </section>
 
   <section class="view" id="view-outcome" role="tabpanel" hidden>
-    <div class="view-head"><h1>Outcome</h1><span class="q">What happened after the decision, measured from the ledger?</span>
-      <div class="toolbar"><button class="btn" id="runWatcher">Run replan watcher</button></div></div>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Closed loop</span></div>
+      <h1>Outcome <span class="hi" lang="hi">(परिणाम)</span></h1>
+      <div class="toolbar"><button class="btn primary" id="runWatcher"><span class="ms">radar</span>Run replan watcher</button></div>
+      <span class="q">What happened after the decision, measured from the ledger?</span></div>
     <div id="outcomeBody"></div>
   </section>
 
   <section class="view" id="view-audit" role="tabpanel" hidden>
-    <div class="view-head"><h1>Audit</h1><span class="q">Every consequential step, hash-chained.</span>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Sovereign ledger</span></div>
+      <h1>Audit <span class="hi" lang="hi">(ऑडिट)</span></h1>
       <div class="toolbar">
         <select id="auditType" aria-label="Event type filter"></select>
-        <button class="btn" id="auditRefresh">Refresh</button>
-        <button class="btn" id="auditExport">Export CSV</button>
-        <button class="btn" id="auditExplain">Explain case (Evidence agent)</button>
-      </div></div>
+        <button class="btn" id="auditRefresh"><span class="ms">refresh</span>Refresh</button>
+        <button class="btn" id="auditExport"><span class="ms">download</span>Export CSV</button>
+        <button class="btn primary" id="auditExplain"><span class="ms">smart_toy</span>Explain case</button></div>
+      <span class="q">Every consequential step, hash-chained (SHA-256).</span></div>
     <div id="auditBody"></div>
   </section>
 
   <section class="view" id="view-data" role="tabpanel" hidden>
-    <div class="view-head"><h1>Data intake</h1><span class="q">Real sources only. Nothing here is generated.</span></div>
+    <div class="view-head"><div class="eyebrow"><span class="tag">Ingestion</span></div>
+      <h1>Data intake <span class="hi" lang="hi">(डेटा)</span></h1>
+      <span class="q">Real sources only. Nothing here is generated unless you load the clearly labelled sample.</span></div>
     <div id="dataSources" class="panel"></div>
     <div class="grid2">
-      <div class="panel"><h2>1 · Facility registry</h2>
-        <p class="muted" style="margin-top:0">Load real public facility locations from OpenStreetMap (5 districts, 5 states), or upload your authorised registry (CSV: facility_id, name, tier, lat, lon, block, has_cold_chain, custodian_id).</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="osmDistrict" aria-label="District"></select>
-        <button class="btn" id="loadOsm">Load OpenStreetMap facilities</button></div>
-        <form id="registryForm" style="margin-top:10px;display:grid;gap:8px">
+      <div class="panel"><h2><span class="ms">location_city</span>1 · Facility registry</h2>
+        <p class="muted" style="margin-top:0">Real public facility locations from OpenStreetMap (5 districts, 5 states), or your authorised registry CSV (facility_id, name, tier, lat, lon, block, has_cold_chain, custodian_id).</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="osmDistrict" aria-label="District" style="flex:1"></select>
+          <button class="btn primary" id="loadOsm"><span class="ms">public</span>Load OpenStreetMap facilities</button></div>
+        <form id="registryForm" style="margin-top:12px;display:grid;gap:8px">
           <input type="file" id="registryFile" accept=".csv,.tsv,text/csv" aria-label="Facility registry file">
-          <button class="btn" type="submit">Upload registry</button></form></div>
-      <div class="panel"><h2>2 · Stock export (DVDMS / e-Aushadhi shaped)</h2>
-        <p class="muted" style="margin-top:0">CSV/TSV with FacilityCode, DrugCode, AvailableStock, IssuedQty, Date (optional: DrugName, period_days, BatchNo, ExpiryDate, VED, cold_chain). Rows stay UNVERIFIED until counted.</p>
+          <button class="btn" type="submit"><span class="ms">upload</span>Upload registry</button></form></div>
+      <div class="panel"><h2><span class="ms">medication</span>2 · Stock export (DVDMS / e-Aushadhi shaped)</h2>
+        <p class="muted" style="margin-top:0">CSV/TSV with FacilityCode, DrugCode, AvailableStock, IssuedQty, Date (optional DrugName, period_days, BatchNo, ExpiryDate, VED, cold_chain). Rows stay UNVERIFIED until counted.</p>
         <form id="stockForm" style="display:grid;gap:8px">
           <input type="file" id="stockFile" accept=".csv,.tsv,text/csv,text/tab-separated-values" aria-label="Stock export file">
-          <button class="btn" type="submit">Upload stock export</button></form></div>
+          <button class="btn" type="submit"><span class="ms">upload</span>Upload stock export</button></form></div>
     </div>
-    <div class="panel"><h2>3 · Sample dataset (optional, for demonstration)</h2>
-      <p class="muted" style="margin-top:0">No government stock, bed or attendance feed is connected. To try the full loop, load realistic <strong>SAMPLE</strong> stock, prior counts, bed occupancy and staff attendance for the real facilities of one district. Every sample value is badged SAMPLE.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="sampleDistrict" aria-label="Sample district"></select>
-        <button class="btn" id="loadSample">Load sample dataset</button>
-        <button class="btn danger" id="resetWs" title="Starts an empty workspace. The ledger keeps all history.">Reset workspace</button></div></div>
-    <div class="panel"><h2>Count sheet → Intake agent</h2>
-      <p class="muted" style="margin-top:0">Paste a count sheet (text) or attach a photo. The agent extracts fields (unreadable = empty), validates them, and files a <em>draft</em>. A verifier must still record the count.</p>
+    <div class="panel"><h2><span class="ms">science</span>3 · Sample dataset (optional, for demonstration)</h2>
+      <p class="muted" style="margin-top:0">No government stock, bed or attendance feed is connected. To try the full loop, load realistic <strong>SAMPLE</strong> stock, earlier counts, bed occupancy and staff attendance for the real facilities of one district. Every sample value is badged SAMPLE.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="sampleDistrict" aria-label="Sample district" style="flex:1"></select>
+        <button class="btn primary" id="loadSample"><span class="ms">dataset</span>Load sample dataset</button>
+        <button class="btn danger" id="resetWs" title="Starts an empty workspace. The ledger keeps all history."><span class="ms">restart_alt</span>Reset workspace</button></div></div>
+    <div class="panel"><h2><span class="ms">document_scanner</span>Count sheet → Intake agent (Gemini multimodal)</h2>
+      <p class="muted" style="margin-top:0">Paste a count sheet or attach a photo. The agent extracts fields (unreadable = empty), validates them, and files a <em>draft</em>. A verifier still records the count.</p>
       <form id="intakeForm" style="display:grid;gap:8px">
-        <textarea id="intakeText" placeholder="facility: PHC-...&#10;sku: ...&#10;present: ...&#10;usable: ...&#10;expired: ...&#10;counted by: ..."></textarea>
+        <textarea id="intakeText" placeholder="facility: OSM-N...&#10;sku: OXY-10&#10;present: 120&#10;usable: 110&#10;expired: 10&#10;counted by: fv-anil"></textarea>
         <input type="file" id="intakeImage" accept="image/jpeg,image/png,image/webp" aria-label="Count sheet photo">
-        <button class="btn" type="submit">Run intake agent</button></form>
-      <div id="intakeResult"></div></div>
-    <div class="panel"><h2>Quarantine</h2><div id="quarantineBody"></div></div>
+        <button class="btn primary" type="submit"><span class="ms">smart_toy</span>Run intake agent</button></form>
+      <div id="intakeResult" style="margin-top:12px"></div></div>
+    <div class="panel"><h2><span class="ms">block</span>Quarantine <span class="hi" lang="hi">(संगरोध)</span></h2><div id="quarantineBody"></div></div>
   </section>
 </main>
+</div>
 
 <aside class="agent-drawer" id="agentDrawer" hidden aria-label="Agents">
-  <header><strong>Agents</strong><span class="badge b-info">AI suggestion — human decides</span>
-    <button class="btn sm" id="closeAgents" style="margin-left:auto">Close</button></header>
-  <div class="body" id="agentLog"><p class="muted">Agents read the ledger through allowlisted tools. They cannot approve, dispatch, count or edit anything. Every statement cites event ids.</p></div>
+  <header><span class="ms" style="color:var(--teal)">smart_toy</span><strong>Operations agents</strong><span class="badge b-info">AI suggestion — human decides</span>
+    <button class="btn sm" id="closeAgents" style="margin-left:auto"><span class="ms">close</span>Close</button></header>
+  <div class="body" id="agentLog"><div class="notice info"><span class="ms">info</span><div>Agents read the ledger through allowlisted tools. They cannot approve, dispatch, count or edit anything, and every statement cites ledger event ids. Powered by Gemini; a labelled deterministic fallback runs if Gemini is unavailable.</div></div></div>
   <form id="agentForm">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <select id="agentName" aria-label="Agent">
-      <option value="ops_copilot">Operations Copilot</option>
-      <option value="resilience_analyst">Resilience Analyst</option>
-      <option value="replan_watcher">Replan Watcher</option>
-      <option value="evidence_agent">Evidence / Audit Agent</option>
-    </select>
-    <select id="agentLang" aria-label="Answer language">
-      <option value="en">English</option><option value="hi">हिन्दी Hindi</option><option value="bn">বাংলা Bengali</option>
-      <option value="te">తెలుగు Telugu</option><option value="mr">मराठी Marathi</option><option value="ta">தமிழ் Tamil</option>
-      <option value="gu">ગુજરાતી Gujarati</option><option value="kn">ಕನ್ನಡ Kannada</option><option value="ml">മലയാളം Malayalam</option>
-      <option value="or">ଓଡ଼ିଆ Odia</option><option value="pa">ਪੰਜਾਬੀ Punjabi</option><option value="ur">اردو Urdu</option>
-    </select>
-    <button class="btn sm" type="button" id="micBtn" aria-pressed="false" title="Speak your question (browser speech recognition)">🎙 Speak</button>
+    <div class="row">
+      <select id="agentName" aria-label="Agent">
+        <option value="ops_copilot">Operations Copilot</option>
+        <option value="resilience_analyst">Resilience Analyst</option>
+        <option value="replan_watcher">Replan Watcher</option>
+        <option value="evidence_agent">Evidence / Audit Agent</option>
+      </select>
+      <select id="agentLang" aria-label="Answer language">
+        <option value="en">English</option><option value="hi">हिन्दी Hindi</option><option value="bn">বাংলা Bengali</option>
+        <option value="te">తెలుగు Telugu</option><option value="mr">मराठी Marathi</option><option value="ta">தமிழ் Tamil</option>
+        <option value="gu">ગુજરાતી Gujarati</option><option value="kn">ಕನ್ನಡ Kannada</option><option value="ml">മലയാളം Malayalam</option>
+        <option value="or">ଓଡ଼ିଆ Odia</option><option value="pa">ਪੰਜਾਬੀ Punjabi</option><option value="ur">اردو Urdu</option>
+      </select>
+      <button class="btn" type="button" id="micBtn" aria-pressed="false" title="Speak your question (browser speech recognition)"><span class="ms">mic</span>Speak</button>
     </div>
-    <textarea id="agentQuery" required maxlength="2000" placeholder="e.g. Which facilities should be counted first and why?"></textarea>
-    <button class="btn primary" type="submit">Ask</button>
+    <div class="suggest" id="agentSuggest"></div>
+    <textarea id="agentQuery" required maxlength="2000" placeholder="e.g. Which facilities should be counted first and why?" style="font-family:var(--sans);font-size:13px"></textarea>
+    <button class="btn primary" type="submit"><span class="ms">send</span>Ask</button>
   </form>
 </aside>
 <div id="toast" class="toast" role="status" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=3.2.0"></script>
 </body>
 </html>
