@@ -185,7 +185,9 @@ def _unhandled(_: Request, exc: Exception) -> JSONResponse:
 @app.get("/", include_in_schema=False)
 def index() -> Response:
     path = os.path.join(WEB_DIR, "index.html")
-    return FileResponse(path) if os.path.isfile(path) else JSONResponse({"status": "api-only"})
+    if not os.path.isfile(path):
+        return JSONResponse({"status": "api-only"})
+    return FileResponse(path, headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"})
 
 
 # --------------------------------------------------------------------------- public status
