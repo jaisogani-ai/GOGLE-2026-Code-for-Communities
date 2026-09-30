@@ -77,7 +77,7 @@ def route_geometry(a: dict, b: dict) -> dict:
         resp.raise_for_status()
         route = resp.json()["routes"][0]
         out = {"path": _decode_polyline(route["polyline"]["encodedPolyline"]),
-               "provenance": "GOOGLE_ROUTES_API_OVER_SYNTHETIC_COORDINATES",
+               "provenance": "GOOGLE_ROUTES_API",
                "distance_km": round(route.get("distanceMeters", 0) / 1000, 1),
                "duration_min": round(float(str(route.get("duration", "0s")).rstrip("s")) / 60, 1)}
     except Exception as exc:

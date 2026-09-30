@@ -45,7 +45,7 @@ flowchart LR
 6. **Ask agents** → Evidence agent in **हिन्दी** → "What happened and why did the plan fail?" → 🔊 Read aloud.
 7. **Audit** → every step above, hash-chained. Full script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
-**Live app:** _added after deployment_
+**Live app:** https://tathyon.onrender.com (Render free tier, Singapore — the first request after idle can take ~50 s to wake. Real OpenStreetMap facilities for Bastar load at boot; other districts and the SAMPLE dataset load from *Data intake*.)
 
 ---
 
