@@ -748,7 +748,14 @@ async function boot() {
     const opts = () => dist.map((d) => h("option", { value: d.key }, `${d.district}, ${d.state} — ${d.facilities} facilities (${d.fetch_status})`));
     $("osmDistrict").replaceChildren(...opts()); $("sampleDistrict").replaceChildren(...opts());
     await refreshAll();
-    if (!S.ws.facilities) show("data"); else show(params.get("view") || "briefing");
+    if (!S.ws.facilities) {
+      try {
+        await api("/api/intake/osm-registry", { method: "POST", body: { district_key: "gaya_bihar" } });
+        await api("/api/intake/sample-dataset", { method: "POST", body: { district_key: "gaya_bihar" } });
+        await refreshAll();
+      } catch (x) { /* proceed */ }
+    }
+    show(params.get("view") || "briefing");
   } catch (e) {
     document.querySelector("main").prepend(h("div", { class: "notice bad" }, `Could not start: ${e.message}`));
   }
