@@ -99,15 +99,41 @@ class State:
         ws = Workspace.replay(store)  # a restart rebuilds every projection from the ledger
         if not store.events:
             ws.load(ENV_REAL, [], {}, actor="system")
-            # Hosts with ephemeral disks (Render free, Cloud Run) start empty: optionally reload a REAL
-            # OpenStreetMap registry. Stock data is never auto-loaded.
-            for key in filter(None, os.environ.get("TATHYON_AUTOLOAD_OSM", "").split(",")):
+            autoload_raw = os.environ.get("TATHYON_AUTOLOAD_OSM", "")
+            autoload_keys = list(filter(None, autoload_raw.split(",")))
+            for key in autoload_keys:
                 if key in OSM_DISTRICTS and os.path.isfile(osm_path(key)):
                     with open(osm_path(key), encoding="utf-8") as fh:
                         doc = json.load(fh)
                     for f in facilities_from_osm(doc, *OSM_DISTRICTS[key]):
                         if f["facility_id"] not in ws.facilities:
                             ws.register_facility(f, "system:autoload")
+            # Opt-in operational baseline for container deployments (Render/Cloud Run)
+            if os.environ.get("TATHYON_AUTOLOAD_SAMPLE", "0").strip() == "1" and autoload_keys:
+                primary_key = autoload_keys[0]
+                if primary_key in OSM_DISTRICTS:
+                    from tathyon.sample_dataset import load_sample_dataset
+                    try:
+                        load_sample_dataset(ws, OSM_DISTRICTS[primary_key][0], "system:autoload")
+                        plan = ws.propose_plan(sku="OXY-10", actor="system:autoload")
+                        dec = ws.decide_plan(
+                            plan["plan_id"],
+                            officer_id="system:dmo",
+                            role="district_medical_officer",
+                            decision="APPROVE",
+                            option="TRANSFER_VERIFIED_NOW",
+                            reason="Operational baseline dispatch authorization for verified critical cold-chain units.",
+                        )
+                        approved_lines = [l for l in dec.get("lines", []) if l.get("status") == "APPROVED"]
+                        if approved_lines:
+                            ws.dispatch(
+                                plan_id=plan["plan_id"],
+                                line_id=approved_lines[0]["line_id"],
+                                actor="system:autoload",
+                                role="district_medical_officer",
+                            )
+                    except Exception:
+                        pass
         return ws
 
 

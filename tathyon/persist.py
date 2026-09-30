@@ -159,6 +159,24 @@ class SQLiteStore(EventStore):
         with self._lock:
             if client_event_id and client_event_id in self._client_ids:
                 return None
+            cur = self._conn.execute("SELECT MAX(offset) FROM events")
+            row = cur.fetchone()
+            db_max = row[0] if (row and row[0] is not None) else -1
+            if len(self._events) <= db_max:
+                cur = self._conn.execute(
+                    "SELECT offset,event_id,event_type,facility_id,resource_type,"
+                    "resource_key,payload_json,occurred_at,recorded_at,actor,"
+                    "prev_hash,hash FROM events WHERE offset >= ? ORDER BY offset",
+                    (len(self._events),))
+                for r in cur.fetchall():
+                    ev = StateEvent(
+                        event_id=r[1], offset=r[0],
+                        event_type=EventType(r[2]), facility_id=r[3],
+                        resource_type=ResourceType(r[4]), resource_key=r[5],
+                        payload=json.loads(r[6]),
+                        occurred_at=r[7], recorded_at=r[8], actor=r[9],
+                        prev_hash=r[10], hash=r[11])
+                    self._events.append(ev)
             ev = super().append(event_type, facility_id, resource_type,
                                 resource_key, payload, actor, occurred_at,
                                 client_event_id)
