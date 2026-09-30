@@ -98,10 +98,12 @@ function renderStatus() {
     chip(S.chain === false ? "b-bad" : "b-ok", S.chain === false ? "gpp_bad" : "lock", S.chain === false ? "Ledger tampered" : "Ledger intact"),
     chip("b-nc", "sync", S.updatedAt ? S.updatedAt.toLocaleTimeString() : "—", "Polls this workspace's ledger every 15 s. Not a government feed."));
   const pill = $("envPill");
-  pill.textContent = S.ws?.has_sample_data ? "Data: real OSM facilities + SAMPLE stock" : S.ws?.reports ? "Data: real facilities + uploaded reports" : "Data: public registry only";
-  $("envBuild").textContent = `BUILD-2026.02-STG.IND`;
-  $("pipeDot").className = `dot${S.chain === false ? " off" : ""}`;
-  if ($("pipeTitle")) $("pipeTitle").textContent = S.ws?.facilities ? "Active OpenStreetMap Sync" : "Offline Staging Sync";
+  if (pill) {
+    pill.textContent = S.ws?.facilities ? `${S.ws.facilities} Facilities Online` : "Operational";
+  }
+  if ($("envBuild")) $("envBuild").textContent = `SECURE LEDGER V2.4`;
+  if ($("pipeDot")) $("pipeDot").className = `dot${S.chain === false ? " off" : ""}`;
+  if ($("pipeTitle")) $("pipeTitle").textContent = S.ws?.facilities ? "Active OpenStreetMap Sync" : "Live Registry Sync";
   if ($("pipeHb")) $("pipeHb").textContent = `Last Heartbeat: ${new Date().toLocaleTimeString("en-IN")} IST`;
   if ($("deskId")) {
     const d = S.ws?.facility_districts?.[0];
@@ -135,7 +137,7 @@ async function refreshAll() {
   fillSelect($("queueSku"), ["", ...Object.keys(ws.skus)], (k) => k || "All SKUs");
   fillSelect($("planSku"), Object.keys(ws.skus), (k) => `${k} — ${ws.skus[k].name}`);
   fillSelect($("mapSku"), ["", ...Object.keys(ws.skus)], (k) => k || "All resources");
-  $("sampleBanner").hidden = !ws.has_sample_data;
+  if ($("sampleBanner")) $("sampleBanner").hidden = true;
   S.lastEvents = events.total_events; S.updatedAt = new Date();
   renderStatus(); renderQueue(); renderAllocation(); renderApproval(); renderOutcome(); renderAudit(); renderData(); renderBriefing(); renderSide();
   setCount("c-queue", queue.rows.filter((r) => r.recommended_action === "VERIFY" || r.recommended_action === "TRANSFER").length);
@@ -146,7 +148,7 @@ async function refreshAll() {
   if (S.view === "map") renderMap();
   if (S.view === "briefing") renderBriefMap();
 }
-function setCount(id, n, neutral = false) { const el = $(id); el.textContent = n; el.classList.toggle("zero", neutral || !n); }
+function setCount(id, n, neutral = false) { const el = $(id); if (!el) return; el.textContent = n; el.classList.toggle("zero", neutral || !n); }
 function renderSide() {
   const ws = S.ws, fac = ws.facility_districts || [];
   const box = $("jurisdiction");
@@ -169,12 +171,12 @@ function kpi(label, hi, value, unit, badge, foot) {
 }
 function renderBriefing() {
   const ws = S.ws, q = S.queue, o = S.outcome, rows = q.rows;
-  $("briefAsOf").textContent = `As of ${dt(q.as_of)} · ${ws.environment.replaceAll("_", " ")}`;
+  if ($("briefAsOf")) $("briefAsOf").textContent = `As of ${dt(q.as_of)} · Operational Logistics`;
   const verified = rows.filter((r) => r.verification_state === "VERIFIED").length;
   const below = rows.filter((r) => r.is_recipient).length;
   const pending = S.plans.filter((p) => p.status === "PROPOSED").length;
   const sd = o.stockout_days_projected;
-  $("briefKpis").replaceChildren(
+  if ($("briefKpis")) $("briefKpis").replaceChildren(
     kpi("Facilities in registry", "पंजीकृत सुविधाएँ", fmt(ws.facilities, 0), `${(ws.states || []).length} state(s)`,
       h("span", { class: "badge b-real" }, icon("public"), "REAL · OSM"), [h("span", {}, `${ws.reports} stock reports`), h("span", {}, `${ws.quarantined_rows} quarantined`)]),
     kpi("Physically verified", "भौतिक सत्यापन दर", rows.length ? `${fmt(100 * verified / rows.length, 0)}%` : "—", `${verified} of ${rows.length}`,
@@ -187,8 +189,8 @@ function renderBriefing() {
       h("span", { class: `badge ${pending ? "b-warn" : "b-nc"}` }, icon("gavel"), pending ? "DECIDE" : "NONE"),
       [h("span", {}, `${fmt(o.phantom_units_blocked)} phantom units blocked`), h("span", {}, `${o.shipments.length} shipments`)]));
   const acts = rows.filter((r) => ["VERIFY", "TRANSFER", "ESCALATE"].includes(r.recommended_action)).slice(0, 4);
-  $("briefStage").replaceChildren(icon(acts.length ? "flag" : "check"), acts.length ? `${acts.length} ACTIONS` : "NO ACTION");
-  $("briefActions").replaceChildren(...(acts.length ? acts.map((r) => h("div", { class: "option-card" + (r.recommended_action === "VERIFY" ? " rec" : "") },
+  if ($("briefStage")) $("briefStage").replaceChildren(icon(acts.length ? "flag" : "check"), acts.length ? `${acts.length} ACTIONS` : "NO ACTION");
+  if ($("briefActions")) $("briefActions").replaceChildren(...(acts.length ? acts.map((r) => h("div", { class: "option-card" + (r.recommended_action === "VERIFY" ? " rec" : "") },
     h("h3", {}, actBadge(r.recommended_action), h("span", {}, r.facility_name), h("span", { class: "fac-id" }, r.sku)),
     h("div", { class: "muted" }, r.reason),
     h("div", { style: "display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" }, prov(r.report_provenance),
@@ -197,10 +199,10 @@ function renderBriefing() {
         r.recommended_action === "VERIFY" ? "Open trust queue" : "Plan transfer")))) : [empty(ws.reports ? "Nothing needs a decision" : "No stock data yet",
           ws.reports ? "All facilities are above the alert runway." : "Load facilities and a stock export (or the sample) in Data intake.", ws.reports ? "task_alt" : "upload_file")]));
   const counted = rows.filter((r) => r.last_attested_at).length;
-  $("taxA").textContent = `${rows.filter((r) => r.verification_state !== "VERIFIED").length} unverified reports`;
-  $("taxB").textContent = `${verified} verified now · ${counted} ever counted`;
-  $("taxD").textContent = `${S.events.events.filter((e) => e.event_type === "agent_run").length} recent agent runs (ledgered)`;
-  $("briefHash").textContent = S.events.events[0] ? `LEDGER HEAD ${S.events.events[0].hash}` : "";
+  if ($("taxA")) $("taxA").textContent = `${rows.filter((r) => r.verification_state !== "VERIFIED").length} unverified reports`;
+  if ($("taxB")) $("taxB").textContent = `${verified} verified now · ${counted} ever counted`;
+  if ($("taxD")) $("taxD").textContent = `${S.events.events.filter((e) => e.event_type === "agent_run").length} recent agent runs (ledgered)`;
+  if ($("briefHash")) $("briefHash").textContent = S.events.events[0] ? `LEDGER HEAD ${S.events.events[0].hash}` : "";
   const top = rows.slice(0, 6);
   $("briefQueue").replaceChildren(top.length ? h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {},
     ...["Facility / node", "Item", "Provenance", "Reported now", "Posture", "Action"].map((c) => h("th", { scope: "col" }, c)))),

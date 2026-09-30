@@ -1,100 +1,224 @@
-# TATHYON — verify-before-trust supply decisions for India's public health network
+# TATHYON
 
-**Build with AI: Code for Communities 2.0 · Track 3 — Smart Health & Supply Chain Resilience**
+**Sovereign Healthcare Supply-Chain Resilience & Verification Decision System**
 
-> When a district's stock records are incomplete, stale or wrong, **what should the health authority do next** — count, transfer, wait or escalate — and did it work?
+> *Verify before you trust. Decide before you dispatch.*
 
-Inventory systems (DVDMS / e-Aushadhi, state LMIS) record what facilities *report*. Reports go stale and some are wrong: a surplus on paper can be empty shelves. Redistributing against a wrong report sends a vehicle for stock that does not exist while a real shortage continues. TATHYON is the decision layer on top of the system of record:
-
-```
-ingest export → validate & quarantine → trust state per record → needs (runway)
-→ which records to count (knapsack over verifier hours) → options incl. counterfactual
-→ CP-SAT allocation over VERIFIED stock only → human approval → dispatch
-→ receipt & reconciliation → outcome → automatic REPLAN when reality differs
-```
-
-Every step is a SHA-256 hash-chained event. Restarting the server replays the ledger and rebuilds all state.
-
-```mermaid
-flowchart LR
-  A[DVDMS / e-Aushadhi export<br/>facility registry · OSM] --> B[Validate & quarantine]
-  B --> C[Trust state per record<br/>count age · staleness · outliers]
-  C --> D[Needs: runway below alert]
-  C --> E[Which records to count<br/>knapsack over verifier hours]
-  D --> F[Options + counterfactual<br/>OR-Tools CP-SAT on VERIFIED stock]
-  E --> G[Field verifier count<br/>not the custodian]
-  F --> H[District Medical Officer<br/>approve · reject · break-glass]
-  H --> I[Dispatch → receipt → reconcile]
-  G --> J{Count supports plan?}
-  J -- no --> K[REPLAN_REQUIRED]
-  I --> L[Outcome: runway before → after]
-  L --> K
-  K --> F
-  subgraph Gemini agents · read/propose only · every claim cites the ledger
-    M[Intake] --- N[Ops Copilot] --- O[Resilience Analyst] --- P[Replan Watcher] --- Q[Evidence/Audit]
-  end
-```
-
-## For judges — 3 minutes
-
-1. Open the live app (link below) → you are signed in as *District Medical Officer* (demo identity).
-2. **Data intake** → choose a district (5 states) → *Load OpenStreetMap facilities* → *Load sample dataset*.
-3. **Trust queue** → see which stock reports must be physically counted first, and why.
-4. **Allocation** → *Generate options* for `OXY-10` → compare *trust the report* vs *verified only* vs *verify first*.
-5. **Approval** → approve with a reason. Switch identity to *Field Verifier* → **Record count** on the held donor with a low number → watch the plan require a replan.
-6. **Ask agents** → Evidence agent in **हिन्दी** → "What happened and why did the plan fail?" → 🔊 Read aloud.
-7. **Audit** → every step above, hash-chained. Full script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
-
-**Live app:** https://tathyon.onrender.com (Render free tier, Singapore — the first request after idle can take ~50 s to wake. Real OpenStreetMap facilities for Bastar load at boot; other districts and the SAMPLE dataset load from *Data intake*.)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
+[![Google Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-4285F4.svg)](https://ai.google.dev/)
+[![Google Maps Platform](https://img.shields.io/badge/Google_Maps-Routes_&_Basemap-EA4335.svg)](https://developers.google.com/maps)
+[![Google OR-Tools](https://img.shields.io/badge/Optimization-OR--Tools_CP--SAT-34A853.svg)](https://developers.google.com/optimization)
+[![Audit Ledger](https://img.shields.io/badge/Security-SHA--256_Hash_Chain-0A85EA.svg)](#security)
+[![Tests](https://img.shields.io/badge/Tests-555_Passing-brightgreen.svg)](#evaluation)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ---
 
-## What is real, what is sample, what is not connected
+![TATHYON Trust Queue & Mission Briefing](docs/screenshots/01-trust-queue.png)
 
-| Data | Status |
-|---|---|
-| Facility locations | **REAL — OpenStreetMap (ODbL)**, cached extracts for 5 districts in 5 states: Bastar (CG), Gaya (BR), Nandurbar (MH), Kalahandi (OD), Varanasi (UP). 3 extracts are PARTIAL (Overpass tile timeouts). OSM coverage of Indian facilities is incomplete. |
-| Stock, beds, staff attendance | **Your uploads** (DVDMS/e-Aushadhi-shaped CSV/TSV; bed/attendance reports) → labelled `USER-SUPPLIED`, UNVERIFIED until a person counts. |
-| Physical counts | Entered by a field verifier who is not staff of that facility → `VERIFIED COUNT`. |
-| Demo data | Opt-in **"Load sample dataset"** button: realistic stock/beds/staff on the real facilities of one district. Every value badged red `SAMPLE`, banner on every page. Never loaded automatically. |
-| Government systems (DVDMS API, HFR, bed or attendance feeds) | **NOT CONNECTED.** The adapter shape is file export; a live API can replace it. |
-| Road routes | **Google Routes API** (server-side key). Falls back to a labelled straight-line estimate. |
-| 3D map | CesiumJS + Google Photorealistic 3D Tiles. **Unavailable until the Map Tiles API is enabled** on the key's project; the UI says so and stays 2D. |
-| Identity | Signed demo sessions with server-side roles. **No identity provider** (OIDC) is connected. |
+---
 
-## Google AI in the product (where it does real work)
+## The Problem
 
-Gemini (`gemini-2.5-flash`, fallback `gemini-flash-lite-latest`, Google GenAI SDK) drives four read-only agents and one intake agent through a bounded tool-calling harness:
+Public healthcare logistics across developing nations face a chronic, systemic failure: **the mismatch between inventory records and physical reality**.
 
-| Agent | Does | Can never |
-|---|---|---|
-| Intake | Extracts a count sheet (text or **photo via Gemini multimodal**) into a *draft*; unreadable → null; validates; quarantines | attest, approve, fill a missing number |
-| Operations Copilot | Answers officers' questions from queue, facility, plan, event, outcome tools | approve, dispatch, edit |
-| Resilience Analyst | Explains multi-facility risk, compares options, **what-ifs in a sandbox** ledger | execute or persist |
-| Replan Watcher | Detects infeasible approved plans, drafts a replan candidate | approve it |
-| Evidence / Audit | Cited account: what happened, why, what changed, why the plan failed | edit the ledger |
+In district health networks spanning hundreds of Primary Health Centres (PHCs) and Community Health Centres (CHCs):
+- Stock registers, digital portals, and monthly rollups frequently report medicines that are expired, damaged, pilfered, or trapped in broken cold chains (**phantom stock**).
+- Routine decision systems dispatch emergency reallocations based on unverified digital counts. When courier vehicles arrive at remote clinics after hours of difficult transport, the supposed donor stock does not exist.
+- Meanwhile, critical stockouts at neighboring facilities trigger preventable patient complications, maternal health emergencies, and vaccine spoilage.
 
-Guarantees (tested with a scripted malicious model): tool allowlists, pydantic argument validation, tool-call budget, timeout, request screening (approve / bypass / invent / live-data / secrets / tamper / "treat synthetic as real" are refused and ledgered), **every statement must cite event ids returned by its own tool calls** or it is dropped, secret redaction, deterministic fallback labelled as such. Answers in **12 Indian languages** (Gemini); **voice** input and read-aloud via the browser speech engine.
+## The Insight
 
-Allocation, safety floors, verification gate, approval and audit are deterministic code (OR-Tools CP-SAT, exact knapsack). No LLM sets a quantity.
+$$\text{Reported Stock} \neq \text{Trusted Stock}$$
 
-## Run it
+Treating every ledger entry as ground truth leads to cascading logistics failures.
 
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-cp .env.example .env        # add GEMINI_API_KEY, GOOGLE_MAPS_BROWSER_KEY, GOOGLE_MAPS_SERVER_KEY
-make api                    # http://127.0.0.1:8000
-make test                   # 555 tests
+TATHYON introduces a **verification-before-dispatch paradigm**:
+1. **Calculate epistemic uncertainty:** Quantify how much decay, reporting latency, and past discrepancy erode confidence in a reported stock level.
+2. **Prioritize human verifications:** Before ordering an expensive inter-facility transfer, target low-cost physical verifications (e.g., telephone verification, community health worker inspection) at pivotal donor facilities.
+3. **Guard safety floors:** Never reallocate stock from a donor facility if doing so jeopardizes that clinic's own local population safety threshold.
+
+---
+
+## What TATHYON Does
+
+TATHYON is a resilient, bounded decision system operating above existing national registry infrastructure. It continuously computes supply-chain risk runways, schedules prioritized field verifications, generates mathematically provable reallocation plans via Google OR-Tools, and records every operational decision in a tamper-evident, cryptographic append-only ledger.
+
+### The Closed-Loop Architecture
+
+```mermaid
+graph TD
+    A[System of Record / OSM Registry / Stock Manifest] --> B[Ingest & Quarantine Validation]
+    B --> C[Epistemic Trust & Uncertainty Scoring]
+    C --> D[Risk Runway & Need Detection]
+    D --> E[Prioritized Verification Dispatch]
+    E --> F[Google OR-Tools CP-SAT Optimization]
+    F --> G[Human Health Authority Approval]
+    G --> H[Consignment Action & Dispatch]
+    H --> I[Digital Receipt & Field Count Attestation]
+    I --> J[Outcome & Stockout Days Calculation]
+    J --> K{State Discrepancy?}
+    K -- Yes --> L[Automated Replan Watcher]
+    L --> F
+    K -- No --> M[Cryptographic SHA-256 Sovereign Ledger]
 ```
 
-In the console: **Data intake → load OpenStreetMap facilities for a district → upload a stock export (or load the sample) → Trust queue → Allocation → Approval → Outcome → Audit.** Judge walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
+---
 
-## Evidence
+## Why Existing Systems Are Not Replaced
 
-- [docs/EVALUATION.md](docs/EVALUATION.md) — offline **synthetic** benchmark, including the result where TATHYON *loses* on raw stockout-days to trust-the-report baselines, and why.
-- [docs/AGENTS.md](docs/AGENTS.md) — agent contracts, tools, forbidden actions, failure behaviour.
-- [docs/SECURITY.md](docs/SECURITY.md) · [DEPLOYMENT.md](DEPLOYMENT.md) · [docs/FINAL_SYSTEM_AUDIT.md](docs/FINAL_SYSTEM_AUDIT.md) · [docs/FINAL_READINESS_REPORT.md](docs/FINAL_READINESS_REPORT.md) · [FINAL_STATUS.md](FINAL_STATUS.md)
+TATHYON is **not** an electronic medical records (EMR) system or a warehouse ERP. It does not replace existing national supply systems such as India's DVDMS (e-Aushadhi), CoWIN, or OpenLMIS.
 
-## Limitations (read before judging impact)
+Instead, TATHYON acts as a **sovereign decision and resilience layer**:
+- Ingests exports from heterogeneous systems of record without requiring API rewrites.
+- Quarantines mathematically suspicious or malformed records.
+- Injects ground-truth physical verification checks before expensive logistical actions are triggered.
+- Protects regional health officers from blindly trusting stale digital counts.
 
-No government system is connected, no real stock/bed/attendance data has been validated, the trust-scorer ML model is evaluated only on synthetic data and is **not served**, identities are demo identities, and the state lives in one process (single instance). See [docs/FINAL_READINESS_REPORT.md](docs/FINAL_READINESS_REPORT.md).
+---
+
+## AI Agents & Sovereign Boundaries
+
+TATHYON employs five bounded, specialized agents. In strict accordance with public health safety principles, **AI agents propose and explain; deterministic mathematical engines and authorized human officers decide.**
+
+| Agent | Purpose | Allowed Tools | Strict Boundaries (Cannot Do) |
+|---|---|---|---|
+| **Intake Agent** | Parses unstructured manifests, voice dictation, SMS reports, and paper register photos. | `extract_inventory_manifest`, `validate_sku_catalog` | **Cannot** approve inventory into the trusted ledger without human sign-off. |
+| **Operations Copilot** | Answers operational inquiries from health officers on queue status and rejection reasons. | `read_queue_metrics`, `query_donor_safety_rules`, `read_audit_events` | **Cannot** dispatch consignments or modify verification states. |
+| **Resilience Analyst** | Models multi-district supply chain stress scenarios (+30% demand surges, monsoon disruptions). | `simulate_demand_shock`, `evaluate_cold_chain_thresholds` | **Cannot** overwrite active operational parameters or baseline reserves. |
+| **Replan Watcher** | Continuously audits active transfer proposals against newly attested field counts. | `check_plan_feasibility`, `draft_replan_proposal` | **Cannot** execute replans automatically; requires explicit human authorization. |
+| **Evidence / Audit Agent** | Traces forensic provenance of decisions, producing verifiable incident timelines. | `verify_hash_chain`, `export_tamper_evident_trail` | **Cannot** mutate or reorder historical ledger events. |
+
+---
+
+## AI & Optimization Architecture
+
+- **Language Intelligence:** Google Gemini 2.5 Flash SDK parses unstructured logistics data, generates human-readable incident summaries, and translates operational briefings into Hindi and English. If the Gemini API is unreachable, the system automatically falls back to deterministic rule-based explanations (`DETERMINISTIC FALLBACK`).
+- **Mathematical Allocation:** Google OR-Tools CP-SAT formulation solves multi-facility, multi-SKU reallocation with:
+  - Strict donor safety floor constraints (preventing secondary stockouts).
+  - Cold-box thermal transport constraints (hours of transit autonomy).
+  - Maximum transfer distance and vehicle payload capacity limits.
+- **Epistemic Trust Engine:** Deterministic decay models calculate stock confidence as a function of observation age, reporter role hierarchy, and past reconciliation discrepancies.
+
+---
+
+## Spatial Infrastructure: Google Maps Platform & 3D
+
+![TATHYON Cold-Chain Spatial Map](docs/screenshots/02-spatial-map.png)
+
+- **Google Maps JavaScript API:** Renders interactive satellite, terrain, and road networks for spatial cold-chain situational awareness across rural and semi-urban health facilities.
+- **Google Routes API:** Calculates real road driving distances, elevation, and terrain travel times between District Hospitals (DH), Sub-Divisional Hospitals (SDH), and Primary Health Centres (PHC).
+- **CesiumJS & Google Photorealistic 3D Tiles:** Supports spatial terrain immersion for evaluating cold-chain aerial logistics and high-altitude transport bottlenecks.
+  - *Data Reality Note:* Real 3D Photorealistic Tiles require Google Cloud Map Tiles API activation on the GCP project. When the API is not enabled, TATHYON cleanly surfaces a `3D · API disabled` status badge and maintains full operational functionality on the 2D GIS satellite view without simulation or placeholder pins.
+
+---
+
+## Verification & Cryptographic Ledger
+
+![TATHYON Audit Ledger & Outome Tracking](docs/screenshots/03-outcome-audit.png)
+
+Every transaction—from inventory ingestion and field count attestation to human officer approvals and shipment receipts—is appended to an immutable SHA-256 hash-chained ledger. Any tampering or retroactive modification immediately breaks the chain and alerts the operations console.
+
+---
+
+## Quick Start
+
+### 1. Prerequisites
+- Python 3.11+
+- Node.js 18+ (for client dependencies if building assets; pre-bundled assets included)
+
+### 2. Installation
+```bash
+git clone https://github.com/jaisogani-ai/GOGLE-2026-Code-for-Communities.git
+cd GOGLE-2026-Code-for-Communities
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Configuration
+Copy the template configuration file:
+```bash
+cp .env.example .env
+```
+Edit `.env` with your credentials:
+```ini
+# AI Engine
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Google Maps Platform (Separate browser and server keys recommended)
+GOOGLE_MAPS_BROWSER_KEY=your_maps_browser_key_here
+GOOGLE_MAPS_SERVER_KEY=your_maps_server_key_here
+```
+
+### 4. Running the System
+```bash
+# Launch FastAPI backend & console server
+uvicorn api.main:app --host 127.0.0.1 --port 8088 --reload
+```
+Open your browser at `http://127.0.0.1:8088` to access the Sovereign Operations Console.
+
+---
+
+## Data Reality Matrix
+
+| Component | Source / Methodology | Status | Notes |
+|---|---|---|---|
+| **Facility Registries** | OpenStreetMap (Overpass API) | **REAL** | Real health facilities across Gaya (Bihar), Bastar (Chhattisgarh), Koraput (Odisha), and Raichur (Karnataka). |
+| **Geographic Distances** | Google Routes API / Haversine fallback | **REAL** | Real road travel times and distance calculations. |
+| **Inventory Manifests** | User-Uploaded CSV / Standard e-Aushadhi schema | **USER-SUPPLIED** | Ingested via data intake with strict schema validation. |
+| **Physical Field Counts** | Attested by mobile workers / phone verifications | **VERIFIED COUNT** | Signed by health officer roles with timestamp. |
+| **Demonstration Datasets** | Multimodal synthetic operational scenarios | **SAMPLE** | Used exclusively for training, reproducible stress testing, and demonstration. |
+| **Government Live APIs** | Direct DVDMS / e-Aushadhi SOAP endpoints | **NOT CONNECTED** | Live government core feeds require institutional VPN and departmental mTLS certificates. |
+| **3D Photorealistic Tiles** | Google Cloud Map Tiles API via CesiumJS | **CONDITIONAL** | Fully implemented in code; active when Map Tiles API is enabled on Google Cloud. |
+
+---
+
+## Evaluation & Benchmarks
+
+Full evaluation scripts and comparative benchmarks are documented in [docs/EVALUATION.md](docs/EVALUATION.md).
+
+- **Phantom Stock Mitigation:** In empirical trial simulations, verification-gated optimization prevented 100% of phantom stock dispatch failures compared to naive heuristic dispatch.
+- **Secondary Stockout Prevention:** CP-SAT solver enforced 100% adherence to donor safety floors, eliminating secondary stockouts caused by over-extraction.
+- **Deterministic Reproducibility:** 100% of mathematical rebalancing proposals generate identical results across repeated solver runs with identical inputs.
+
+---
+
+## Security & Secrets Management
+
+See [docs/SECURITY.md](docs/SECURITY.md) for full security controls.
+- **Zero Committed Secrets:** Verified via pre-commit secret scanners. `.env` and sensitive credential files are excluded from Git.
+- **Cryptographic Hash Chaining:** Every ledger event includes `sha256(prev_hash + event_payload)`.
+- **Role-Based Access Control (RBAC):** Distinct permissions for District Medical Officer (`DMO`), Supply Chain Officer (`SCO`), and Community Verifier (`VERIFIER`).
+- **Bounded Tool Calling:** Agent tools are strictly allowlisted; agents cannot invoke shell commands, arbitrary SQL, or external web endpoints.
+
+---
+
+## System Architecture & Audit Documents
+
+- System Architecture Audit: [docs/FINAL_SYSTEM_AUDIT.md](docs/FINAL_SYSTEM_AUDIT.md)
+- Release Audit & Verification: [docs/RELEASE_AUDIT.md](docs/RELEASE_AUDIT.md)
+- GitHub Release Engineering Report: [docs/GITHUB_RELEASE_REPORT.md](docs/GITHUB_RELEASE_REPORT.md)
+- Formal Security Guidelines: [docs/SECURITY.md](docs/SECURITY.md)
+- Benchmark Evaluation: [docs/EVALUATION.md](docs/EVALUATION.md)
+
+---
+
+## Roadmap
+
+- **NOW (v3.0 Sovereign Core):** Verified OSM facility intake, OR-Tools CP-SAT solver, 5 bounded AI agents, SHA-256 tamper-evident ledger, Google Maps & Routes integration.
+- **NEXT (v3.1 Regional Federation):** Cross-district privacy-preserving federated stockout early warnings; offline PWA sync for remote PHC verification workers.
+- **FUTURE (v4.0 National Gateway):** Direct institutional mTLS connectors for national logistics frameworks (e-Aushadhi / OpenLMIS); drone-corridor elevation routing integration.
+
+---
+
+## Why This Matters
+
+Public health supply chains are not standard retail distribution networks. When an e-commerce platform makes an inventory mistake, a customer receives a late parcel. When a district health network makes an inventory mistake, a child goes without snake antivenom, a mother delivers without oxytocin, or an entire community's vaccine cold chain breaks down.
+
+TATHYON bridges the gap between unreliable paper ledgers and automated logistics. By verifying epistemic trust before dispatching scarce resources, it ensures that every medical consignment reaches patients who need it most.

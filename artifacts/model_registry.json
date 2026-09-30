@@ -1,6 +1,6 @@
 {
   "registry_version": "2.0.0",
-  "last_updated": "2026-09-30T15:16:50.746841+00:00",
+  "last_updated": "2026-09-30T15:34:14.983971+00:00",
   "provenance_policy": "Strict Real Data Governance: No synthetic rows in supervised training; human-attested P6 ground truth required; status never labeled production-ready without statutory approval.",
   "reality_audit": {
     "audit_timestamp": "2026-09-29T18:00:00Z",

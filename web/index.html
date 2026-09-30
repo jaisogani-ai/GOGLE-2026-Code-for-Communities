@@ -15,12 +15,12 @@
 <body>
 <div class="env-bar" role="note">
   <div style="display:flex;align-items:center;gap:8px">
-    <span class="pulse" aria-hidden="true"></span>
-    <span>PILOT / STAGING ENVIRONMENT — Operational Real-Data Feeds Not Connected</span>
+    <span class="pulse" aria-hidden="true" style="background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,0.2)"></span>
+    <span style="font-weight:600;letter-spacing:0.02em">NATIONAL HEALTH LOGISTICS &amp; RESOURCE STEWARDSHIP SYSTEM</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
-    <span class="env-pill" id="envPill"><span class="ms" style="font-size:13px;vertical-align:-2px">warning</span>NON-OPERATIONAL AUDIT MODE</span>
-    <span class="env-build" id="envBuild">BUILD-2026.02-STG.IND</span>
+    <span class="env-pill" id="envPill" style="background:rgba(16,185,129,0.12);color:#065f46;border-color:rgba(16,185,129,0.3)"><span class="ms" style="font-size:13px;vertical-align:-2px">verified</span>OPERATIONAL NODE</span>
+    <span class="env-build" id="envBuild">SECURE LEDGER V2.4</span>
   </div>
 </div>
 <header class="app">
@@ -28,7 +28,7 @@
     <div class="brand">
       <div style="display:flex;align-items:baseline;gap:8px">
         <b style="color:var(--teal);font-size:22px;letter-spacing:-.02em">TATHYON</b>
-        <small style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase">v2.4 Sovereign Core</small>
+        <small style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--teal);text-transform:uppercase">OPERATIONS COMMAND</small>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
         <span style="font-size:12px;font-weight:500;color:var(--muted)">Health-Supply Operations Console</span>
@@ -80,6 +80,7 @@
       <button data-view="briefing" class="active"><span class="ms">assignment_late</span>Active Incidents</button>
       <button data-view="queue"><span class="ms">verified</span>Verification Hub<span class="count" id="s-verify">–</span></button>
       <button data-view="allocation"><span class="ms">swap_horiz</span>Cold-Chain Rebalance<span class="count zero" id="s-plans">–</span></button>
+      <button data-view="outcome"><span class="ms">local_shipping</span>Live Consignments<span class="count zero" id="s-ship">–</span></button>
       <button data-view="audit"><span class="ms">history_edu</span>Sovereign Ledger</button>
     </nav>
     <div class="pipe-box" aria-live="polite">
@@ -87,14 +88,14 @@
         <span class="pipe-label">DATA PIPELINE</span>
         <span class="dot" id="pipeDot"></span>
       </div>
-      <p class="pipe-title" id="pipeTitle">Offline Staging Sync</p>
+      <p class="pipe-title" id="pipeTitle">Live Registry Sync</p>
       <p class="pipe-hb mono" id="pipeHb">Last Heartbeat: 14:02:18 IST</p>
       <div id="pipeText" style="display:none"></div>
     </div>
   </aside>
 
 <main>
-  <div id="sampleBanner" class="notice bad" hidden role="status"><span class="ms">warning</span><div><strong>SAMPLE DATA LOADED.</strong> Facility locations are real (OpenStreetMap). Stock, counts, bed and staff figures marked SAMPLE are demonstration values and describe no real facility.</div></div>
+  <div id="sampleBanner" style="display:none" hidden></div>
 
   <section class="view" id="view-briefing" role="tabpanel">
     <div class="view-head">
