@@ -1,6 +1,6 @@
 {
   "registry_version": "2.0.0",
-  "last_updated": "2026-09-30T15:34:14.983971+00:00",
+  "last_updated": "2026-10-01T10:12:14.184403+00:00",
   "provenance_policy": "Strict Real Data Governance: No synthetic rows in supervised training; human-attested P6 ground truth required; status never labeled production-ready without statutory approval.",
   "reality_audit": {
     "audit_timestamp": "2026-09-29T18:00:00Z",
@@ -222,7 +222,7 @@
       "resource_module": "medicine",
       "dataset_citation": "CDAC DVDMS / e-Aushadhi Export Specification & Bastar OSM Infrastructure",
       "license": "Restricted Sovereign Government Data (Offline Air-gapped Ingestion)",
-      "retrieval_date": "2026-09-30",
+      "retrieval_date": "2026-10-01",
       "file_sha256": "SPECIFICATION_PENDING_FIELD_INGEST",
       "training_revision": "HEAD",
       "hyperparameters": {
